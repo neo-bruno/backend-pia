@@ -1,0 +1,4 @@
+// PIA - módulo reclamo
+// Capa: service
+// TODO: implementar cuando se cierre el contrato funcional del módulo.
+
