@@ -1,4 +1,23 @@
-// PIA - módulo reserva
+// ============================================================
+// PIA - MÓDULO RESERVA
 // Capa: routes
-// TODO: implementar cuando se cierre el contrato funcional del módulo.
+// ============================================================
 
+const express = require("express");
+
+const router = express.Router();
+
+const controller = require("./reserva.controller");
+
+const { verifyToken } = require("../../middlewares/auth.middleware");
+const { allowRoles } = require("../../middlewares/role.middleware");
+
+// ============================================================
+// RESERVAS DEL PROFESIONAL
+// ============================================================
+
+// GET /api/reserva
+// GET /api/reserva?fecha=2026-10-05
+router.get("/", verifyToken, allowRoles("ADMIN"), controller.getReservations);
+
+module.exports = router;

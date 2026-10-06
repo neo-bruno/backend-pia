@@ -1,4 +1,10 @@
-// PIA - módulo negocio
-// Capa: routes
-// TODO: implementar cuando se cierre el contrato funcional del módulo.
+const express = require("express");
+const controller = require("./negocio.controller");
+const upload = require("../../middlewares/negocio.upload");
 
+const router = express.Router();
+
+router.get("/", controller.getBusiness);
+router.post('/', upload.single('comprobante'), controller.saveBusinessProfession);
+
+module.exports = router;

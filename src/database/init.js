@@ -8,6 +8,9 @@ const seedTipoCalificacion = require("./seeds/seed-tipo-calificacion");
 const seedMetodoPago = require("./seeds/seed-metodo-pago");
 const seedSegmentacion = require("./seeds/seed-segmentacion");
 const seedSuperadmin = require("./seeds/seed-superadmin");
+const seedGerenteGerencia = require("./seeds/seed-gerente-gerencia");
+const seedTiposNegocio = require("./seeds/seed-tipo-negocios");
+const seedTiposProfesiones = require("./seeds/seed-tipo-profesionales");
 
 const init = async () => {
   const client = await pool.connect();
@@ -21,17 +24,47 @@ const init = async () => {
 
     await client.query("BEGIN");
 
+    /*
+     * ==========================================
+     * CATÁLOGOS BASE
+     * ==========================================
+     */
+
     await seedRoles(client);
 
     await seedTipoPromocion(client);
 
     await seedTipoCalificacion(client);
 
+    await seedTiposNegocio(client);
+
+    await seedTiposProfesiones(client);
+
     await seedMetodoPago(client);
 
     await seedSegmentacion(client);
 
-    await seedSuperadmin(client);
+    /*
+     * ==========================================
+     * USUARIO PRINCIPAL
+     * ==========================================
+     */
+
+    const superadmin = await seedSuperadmin(client);
+
+    /*
+     * ==========================================
+     * GERENCIA PIA
+     * ==========================================
+     */
+
+    await seedGerenteGerencia(client, superadmin.persona_id);
+
+    /*
+     * ==========================================
+     * CONFIRMAR
+     * ==========================================
+     */
 
     await client.query("COMMIT");
 

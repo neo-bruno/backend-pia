@@ -1,4 +1,9 @@
-// PIA - módulo gerencia
-// Capa: service
-// TODO: implementar cuando se cierre el contrato funcional del módulo.
+const repository = require("./gerencia.repository");
 
+const getManagement = async () => {
+  return await repository.getManagement();
+};
+
+module.exports = {
+  getManagement,
+};

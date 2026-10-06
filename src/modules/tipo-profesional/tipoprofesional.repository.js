@@ -1,4 +1,18 @@
-// PIA - módulo tipo-profesional
-// Capa: repository
-// TODO: implementar cuando se cierre el contrato funcional del módulo.
+const pool = require("../../database/pool");
 
+const listar = async () => {
+  const query = `
+        SELECT
+            id,
+            nombre,
+            descripcion
+        FROM tipo_profesional
+        ORDER BY nombre ASC
+    `;
+  const { rows } = await pool.query(query);
+  return rows;
+};
+
+module.exports = {
+  listar,
+};

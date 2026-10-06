@@ -1,4 +1,8 @@
-// PIA - módulo gerencia
-// Capa: routes
-// TODO: implementar cuando se cierre el contrato funcional del módulo.
+const express = require("express");
+const controller = require("./gerencia.controller");
 
+const router = express.Router();
+
+router.get("/", controller.getManagement);
+
+module.exports = router;

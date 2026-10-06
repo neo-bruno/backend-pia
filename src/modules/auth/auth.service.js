@@ -27,9 +27,37 @@ const login = async (telefono, password) => {
     throw error;
   }
 
+  // =====================================================
+  // CONTEXTO DEL PROFESIONAL
+  // =====================================================
+
+  const puedeConfigurarNegocio =
+    usuario.acceso === "ACEPTADO" &&
+    usuario.profesional_negocio_estado === "HABILITADO";
+
+  // =====================================================
+  // PAYLOAD DEL TOKEN
+  // =====================================================
+
   const payload = {
+    // Usuario
     usuario_id: usuario.usuario_id,
     persona_id: usuario.persona_id,
+
+    // Profesional
+    profesional_id: usuario.profesional_id,
+    profesional_estado: usuario.profesional_estado,
+    profesional_estado_funciones: usuario.profesional_estado_funciones,
+
+    // Relación profesional - negocio
+    negocio_id: usuario.negocio_id,
+    profesional_negocio_estado: usuario.profesional_negocio_estado,
+    acceso: usuario.acceso,
+
+    // Permisos
+    puede_configurar_negocio: puedeConfigurarNegocio,
+
+    // Rol
     rol_id: usuario.rol_id,
     rol: usuario.rol_nombre,
   };
@@ -38,11 +66,30 @@ const login = async (telefono, password) => {
 
   return {
     token,
+
     usuario: {
+      // Usuario
       id: usuario.usuario_id,
       persona_id: usuario.persona_id,
+
+      // Profesional
+      profesional_id: usuario.profesional_id,
+      profesional_estado: usuario.profesional_estado,
+      profesional_estado_funciones: usuario.profesional_estado_funciones,
+
+      // Relación con negocio
+      negocio_id: usuario.negocio_id,
+      profesional_negocio_estado: usuario.profesional_negocio_estado,
+      acceso: usuario.acceso,
+
+      // Permiso
+      puede_configurar_negocio: puedeConfigurarNegocio,
+
+      // Datos básicos
       nombre: usuario.persona_nombre,
       telefono: usuario.telefono,
+
+      // Rol
       rol_id: usuario.rol_id,
       rol: usuario.rol_nombre,
     },

@@ -1,12 +1,62 @@
 const express = require("express");
 const rolRoutes = require("../modules/rol");
-const authRoutes = require('../modules/auth')
-const usuarioRoutes = require('../modules/usuario')
+const authRoutes = require("../modules/auth");
+const usuarioRoutes = require("../modules/usuario");
+const tipoNegocioRoutes = require("../modules/tipo-negocio");
+const tipoProfesionalRoutes = require("../modules/tipo-profesional");
+const gerenciaRoutes = require("../modules/gerencia");
+const negocioRoutes = require("../modules/negocio");
+const profesionalRoutes = require("../modules/profesional");
+const comprobanteRoutes = require("../modules/comprobante");
+const servicioRoutes = require("../modules/servicio");
+const horariosRoutes = require("../modules/horarios");
+const profesionaLNegocioRoutes = require("../modules/profesional-negocio");
+const horarioprofesionalRoutes = require("../modules/horario-profesional");
+const slotRoutes = require("../modules/slot");
+const profesionalPublicoRoutes = require("../modules/profesional-publico");
+const servicioPublicoRoutes = require("../modules/servicio-publico");
+const reservaPublicoRoutes = require("../modules/reserva-publico");
+const horarioPublicoRoutes = require("../modules/horario-publico");
+const clienteRoutes = require("../modules/cliente");
+const pagoClienteRoutes = require("../modules/pago-cliente");
+const piaRoutes = require("../modules/pia");
+const favoritoRoutes = require("../modules/favoritos");
+const notificacionRoutes = require("../modules/notificacion");
+const servicioCondicionRoutes = require("../modules/servicio-condicion");
+const condicionRoutes = require("../modules/condicion");
+const servicioArchivoRoutes = require("../modules/servicio-archivo");
+const reservaRoutes = require("../modules/reserva");
+const notificacionAdminRoutes = require("../modules/notificacion-admin");
 
 const router = express.Router();
 
 router.use("/rol", rolRoutes);
-router.use('/auth', authRoutes)
-router.use('/usuario', usuarioRoutes)
+router.use("/auth", authRoutes);
+router.use("/usuario", usuarioRoutes);
+router.use("/tipo-negocio", tipoNegocioRoutes);
+router.use("/tipo-profesional", tipoProfesionalRoutes);
+router.use("/gerencia", gerenciaRoutes);
+router.use("/negocio", negocioRoutes);
+router.use("/profesional", profesionalRoutes);
+router.use("/comprobante", comprobanteRoutes);
+router.use("/servicio", servicioRoutes);
+router.use("/horarios", horariosRoutes);
+router.use("/profesional-negocio", profesionaLNegocioRoutes);
+router.use("/horario-profesional", horarioprofesionalRoutes);
+router.use("/slot", slotRoutes);
+router.use("/profesional-publico", profesionalPublicoRoutes);
+router.use("/servicio-publico", servicioPublicoRoutes);
+router.use("/reserva-publico", reservaPublicoRoutes);
+router.use("/horario-publico", horarioPublicoRoutes);
+router.use("/cliente", clienteRoutes);
+router.use("/pago-cliente", pagoClienteRoutes);
+router.use("/pia", piaRoutes);
+router.use("/favoritos", favoritoRoutes);
+router.use("/notificacion", notificacionRoutes);
+router.use("/servicio-condicion", servicioCondicionRoutes);
+router.use("/condicion", condicionRoutes);
+router.use("/servicio-archivo", servicioArchivoRoutes);
+router.use("/reserva", reservaRoutes);
+router.use("/notificacion-admin", notificacionAdminRoutes);
 
 module.exports = router;
