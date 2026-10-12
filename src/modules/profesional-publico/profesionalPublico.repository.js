@@ -932,9 +932,8 @@ const getProfessionals = async () => {
           ON r.id = rd.ranking_id
         WHERE rd.profesional_id = p.id
           AND r.estado = 'ACTIVO'
-          AND CURRENT_DATE BETWEEN r.fecha_inicio AND r.fecha_fin
         ORDER BY
-          r.fecha_fin DESC,
+          rd.posicion ASC,
           rd.id DESC
         LIMIT 1
       ) AS posicion,
@@ -1204,7 +1203,7 @@ async function getProfessionalBySlug(slug) {
 
     LEFT JOIN negocio n
       ON n.id = pn.negocio_id
-
+    
     -- =====================================================
     -- CALIFICACIONES
     -- =====================================================
@@ -1212,8 +1211,11 @@ async function getProfessionalBySlug(slug) {
     LEFT JOIN calificacion c
       ON c.profesional_id = p.id
 
+    LEFT JOIN evaluacion e
+      ON e.id = c.evaluacion_id
+
     LEFT JOIN tipo_calificacion tc
-      ON tc.id = c.tipo_calificacion_id
+      ON tc.id = e.tipo_calificacion_id
 
     -- =====================================================
     -- HISTORIAL

@@ -214,7 +214,11 @@ async function confirmReservation({
 
     if (duracionSlots !== Number(servicio.duracion)) {
       throw crearError(
-        "Los horarios seleccionados no corresponden a la duración del servicio.",
+        "Los horarios seleccionados no corresponden a la duración del servicio que es de: " +
+          servicio.duracion +
+          " min   y el horario es de: " +
+          duracionSlots +
+          " min",
         400,
         "DURACION_INVALIDA",
       );
@@ -406,25 +410,25 @@ async function confirmReservation({
     // ============================================================
     // CREAR NOTIFICACIÓN DE LA RESERVA
     // ============================================================
-    await notificacionRepository.crearNotificacion(client, {
-      cliente_id: clienteId,
-      reserva_id: reservaCreada.id,
-      titulo: requiereAdelanto ? "Reserva pendiente" : "Reserva confirmada",
-      mensaje: requiereAdelanto
-        ? `Tu reserva #${reservaCreada.numero} fue registrada y está pendiente de validar el comprobante.`
-        : `Tu reserva #${reservaCreada.numero} fue confirmada correctamente.`,
-      tipo: "RESERVA",
-    });
+    // await notificacionRepository.crearNotificacion(client, {
+    //   cliente_id: clienteId,
+    //   reserva_id: reservaCreada.id,
+    //   titulo: requiereAdelanto ? "Reserva pendiente" : "Reserva confirmada",
+    //   mensaje: requiereAdelanto
+    //     ? `Tu reserva #${reservaCreada.numero} fue registrada y está pendiente de validar el comprobante.`
+    //     : `Tu reserva #${reservaCreada.numero} fue confirmada correctamente.`,
+    //   tipo: "RESERVA",
+    // });
 
     const notificacionProfesional = await notificacionRepository.crearNotificacionProfesional(client, {
-      profesional_id: profesional.id,
-      reserva_id: reservaCreada.id,
-      titulo: "Nueva reserva",
-      mensaje: requiereAdelanto
-        ? `Se registró la reserva #${reservaCreada.numero} y está pendiente de validar el comprobante.`
-        : `Se registró la reserva #${reservaCreada.numero} y está confirmada.`,
-      tipo: "RESERVA",
-    });
+        profesional_id: profesional.id,
+        reserva_id: reservaCreada.id,
+        titulo: "Nueva reserva",
+        mensaje: requiereAdelanto
+          ? `Se registró la reserva #${reservaCreada.numero} y está pendiente de validar el comprobante.`
+          : `Se registró la reserva #${reservaCreada.numero} y está confirmada.`,
+        tipo: "RESERVA",
+      });
 
     // ===================================================
     // PAGO + COMPROBANTE

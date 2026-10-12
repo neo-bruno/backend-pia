@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 const app = require("./app");
 const { port } = require("./config/env");
 const { verificarToken } = require("./utils/jwt");
+const pool = require("./database/pool");
 
 const httpServer = http.createServer(app);
 
@@ -17,7 +18,11 @@ const io = new Server(httpServer, {
 
 configurarSocketIO(io);
 
-io.use((socket, next) => {
+// ============================================================
+// AUTENTICAR PROFESIONALES Y CLIENTES
+// ============================================================
+
+io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token;
 
@@ -25,34 +30,87 @@ io.use((socket, next) => {
       return next(new Error("Token de autenticación requerido"));
     }
 
-    const usuario = verificarToken(token);
+    // --------------------------------------------------------
+    // 1. INTENTAR AUTENTICACIÓN DEL PROFESIONAL
+    // --------------------------------------------------------
 
-    if (usuario.rol !== "ADMIN") {
-      return next(new Error("Acceso no autorizado"));
+    try {
+      const usuario = verificarToken(token);
+
+      if (usuario.rol === "ADMIN" && usuario.profesional_id) {
+        socket.data.tipoUsuario = "PROFESIONAL";
+        socket.data.usuario = usuario;
+
+        return next();
+      }
+    } catch {
+      // El token puede pertenecer a un cliente.
     }
 
-    if (!usuario.profesional_id) {
-      return next(new Error("Profesional no asociado"));
+    // --------------------------------------------------------
+    // 2. AUTENTICAR CLIENTE CON SU TOKEN DE BASE DE DATOS
+    // --------------------------------------------------------
+
+    const resultado = await pool.query(
+      `
+        SELECT id
+        FROM cliente
+        WHERE token = $1
+        LIMIT 1
+      `,
+      [token],
+    );
+
+    const cliente = resultado.rows[0];
+
+    if (cliente) {
+      socket.data.tipoUsuario = "CLIENTE";
+      socket.data.clienteId = cliente.id;
+
+      return next();
     }
 
-    socket.data.usuario = usuario;
-
-    next();
+    return next(new Error("Token inválido o acceso no autorizado"));
   } catch (error) {
-    next(new Error("Token inválido o expirado"));
+    console.error("Error autenticando Socket.IO:", error.message);
+    return next(new Error("Error al autenticar la conexión"));
   }
 });
 
+// ============================================================
+// CONEXIÓN Y ASIGNACIÓN A SALAS PRIVADAS
+// ============================================================
+
 io.on("connection", (socket) => {
-  const profesionalId = socket.data.usuario.profesional_id;
+  // ----------------------------------------------------------
+  // PROFESIONAL
+  // ----------------------------------------------------------
 
-  const sala = `profesional:${profesionalId}`;
+  if (socket.data.tipoUsuario === "PROFESIONAL") {
+    const profesionalId = socket.data.usuario.profesional_id;
+    const sala = `profesional:${profesionalId}`;
 
-  socket.join(sala);
+    socket.join(sala);
 
-  console.log(
-    `🔌 Socket conectado - profesional ${profesionalId} - sala ${sala}`,
-  );
+    console.log(
+      `🔌 Socket conectado - profesional ${profesionalId} - sala ${sala}`,
+    );
+
+    return;
+  }
+
+  // ----------------------------------------------------------
+  // CLIENTE
+  // ----------------------------------------------------------
+
+  if (socket.data.tipoUsuario === "CLIENTE") {
+    const clienteId = socket.data.clienteId;
+    const sala = `cliente:${clienteId}`;
+
+    socket.join(sala);
+
+    console.log(`🔌 Socket conectado - cliente ${clienteId} - sala ${sala}`);
+  }
 });
 
 httpServer.listen(port, () => {

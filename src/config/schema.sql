@@ -22,12 +22,14 @@ CREATE TYPE estado_comprobante_enum AS ENUM ('PENDIENTE','ACEPTADO','RECHAZADO')
 CREATE TYPE estado_segmentacion_enum AS ENUM ('ACTIVO','INACTIVO');
 CREATE TYPE estado_tipo_calificacion_enum AS ENUM ('ACTIVO','INACTIVO');
 CREATE TYPE estado_calificacion_enum AS ENUM ('ACTIVA','INACTIVA');
-CREATE TYPE tipo_ranking_enum AS ENUM ('NEGOCIO','PLATAFORMA','PROFESIONAL');
+CREATE TYPE tipo_ranking_enum AS ENUM ('NEGOCIO','PLATAFORMA','PROFESIONAL','SERVICIO');
 CREATE TYPE estado_ranking_enum AS ENUM ('ACTIVO','INACTIVO');
 CREATE TYPE estado_reclamo_enum AS ENUM ('PENDIENTE','ATENDIDO','CERRADO');
 CREATE TYPE satisfaccion_reclamo_enum AS ENUM ('EXCELENTE','MUY_BUENO','BUENO','MALO','PESIMO');
 CREATE TYPE estado_notificacion_enum AS ENUM ('LEIDA','NO_LEIDA');
 CREATE TYPE tipo_servicio_archivo_enum AS ENUM ('FOTO', 'VIDEO');
+CREATE TYPE objetivo_calificacion_enum AS ENUM ('PROFESIONAL', 'SERVICIO', 'NEGOCIO', 'PIA');
+CREATE TYPE estado_evaluacion_enum AS ENUM ('HABILITADO', 'DESHABILITADO');
 
 CREATE TABLE rol (
     id SERIAL PRIMARY KEY,
@@ -324,13 +326,23 @@ CREATE TABLE reserva (
 
 CREATE TABLE reserva_slot (
     id SERIAL PRIMARY KEY,
-    reserva_id INTEGER NOT NULL REFERENCES reserva(id) ON DELETE CASCADE,
+		
+    reserva_id INTEGER NULL REFERENCES reserva(id) ON DELETE CASCADE,
     slot_id INTEGER NOT NULL REFERENCES slot(id),
+    bloqueo_id INTEGER NULL REFERENCES bloqueo(id) ON DELETE CASCADE,
+
     orden INTEGER NOT NULL,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_reserva_slot UNIQUE (reserva_id, slot_id),
-    CONSTRAINT chk_reserva_slot_orden CHECK (orden > 0)				
+    CONSTRAINT chk_reserva_slot_orden CHECK (orden > 0),
+
+    CONSTRAINT chk_reserva_slot_origen
+        CHECK (
+            (reserva_id IS NOT NULL AND bloqueo_id IS NULL)
+            OR
+            (reserva_id IS NULL AND bloqueo_id IS NOT NULL)
+        )
 );
 
 CREATE TABLE reprogramacion (
@@ -462,38 +474,51 @@ CREATE TABLE historial_segmentacion (
 
 CREATE TABLE tipo_calificacion (
     id SERIAL PRIMARY KEY,
-    codigo VARCHAR(50) NOT NULL UNIQUE,
-    nombre VARCHAR(100) NOT NULL,
+
+    codigo VARCHAR(50) NOT NULL,
+    tipo VARCHAR(100) NOT NULL,
     descripcion TEXT,
+
+    objetivo objetivo_calificacion_enum NOT NULL,
     estado estado_tipo_calificacion_enum NOT NULL DEFAULT 'ACTIVO',
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_tipo_calificacion_objetivo_codigo UNIQUE (objetivo, codigo)
 );
 
 CREATE TABLE calificacion (
     id SERIAL PRIMARY KEY,
+    evaluacion_id INTEGER NOT NULL REFERENCES evaluacion(id),
+    reserva_id INTEGER NOT NULL REFERENCES reserva(id),
+
     cliente_id INTEGER REFERENCES cliente(id),
     profesional_id INTEGER REFERENCES profesional(id),
     negocio_id INTEGER REFERENCES negocio(id),
     servicio_id INTEGER REFERENCES servicio(id),
     gerencia_id INTEGER REFERENCES gerencia(id),
-    tipo_calificacion_id INTEGER NOT NULL REFERENCES tipo_calificacion(id),
+
     puntaje NUMERIC(5,2) NOT NULL,
     titulo VARCHAR(200),
     observacion TEXT,
+
     estado estado_calificacion_enum NOT NULL DEFAULT 'ACTIVA',
-    fecha DATE NOT NULL,
-    hora TIME NOT NULL,
+
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+    hora TIME NOT NULL DEFAULT LOCALTIME,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_calificacion_reserva_evaluacion UNIQUE (reserva_id, evaluacion_id),
+    CONSTRAINT chk_calificacion_puntaje CHECK (puntaje BETWEEN 0 AND 5)
 );
 
 CREATE TABLE ranking (
     id SERIAL PRIMARY KEY,
     tipo tipo_ranking_enum NOT NULL,
     descripcion TEXT,
-    fecha_inicio DATE NOT NULL,
-    fecha_fin DATE NOT NULL,
     cantidad_minima_calificaciones INTEGER NOT NULL,
     estado estado_ranking_enum NOT NULL DEFAULT 'ACTIVO',
     fecha_creacion DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -503,17 +528,24 @@ CREATE TABLE ranking (
 
 CREATE TABLE evaluacion (
     id SERIAL PRIMARY KEY,
-    ranking_id INTEGER NOT NULL REFERENCES ranking(id),
+
     cliente_id INTEGER REFERENCES cliente(id),
     profesional_id INTEGER REFERENCES profesional(id),
     negocio_id INTEGER REFERENCES negocio(id),
     servicio_id INTEGER REFERENCES servicio(id),
-    gerencia_id INTEGER REFERENCES gerencia(id),
+    gerencia_id INTEGER REFERENCES gerencia(id),    
+
     tipo_calificacion_id INTEGER NOT NULL REFERENCES tipo_calificacion(id),
-    puntaje_promedio NUMERIC(5,2) NOT NULL,
-    cantidad_calificaciones INTEGER NOT NULL,
+
+    puntaje_promedio NUMERIC(5,2) NOT NULL DEFAULT 0,
+    cantidad_calificaciones INTEGER NOT NULL DEFAULT 0,
+
+    estado estado_evaluacion_enum NOT NULL DEFAULT 'DESHABILITADO',
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_evaluacion_tipo_calificacion UNIQUE (tipo_calificacion_id)
 );
 
 CREATE TABLE ranking_detalle (
@@ -549,23 +581,32 @@ CREATE TABLE reclamo (
 
 CREATE TABLE notificacion (
     id SERIAL PRIMARY KEY,
+
     cliente_id INTEGER REFERENCES cliente(id),
     profesional_id INTEGER REFERENCES profesional(id),
     gerente_id INTEGER REFERENCES gerente(id),
     gerencia_id INTEGER REFERENCES gerencia(id),
+    negocio_id INTEGER REFERENCES negocio(id),
+
     reserva_id INTEGER REFERENCES reserva(id),
+    evaluacion_id INTEGER REFERENCES evaluacion(id),
+
     pago_id INTEGER REFERENCES pago(id),
     membresia_id INTEGER REFERENCES membresia(id),
     reclamo_id INTEGER REFERENCES reclamo(id),
     promocion_id INTEGER REFERENCES promocion(id),
     descuento_id INTEGER REFERENCES descuento(id),
     servicio_id INTEGER REFERENCES servicio(id),
+
     titulo VARCHAR(200) NOT NULL,
     mensaje TEXT NOT NULL,
     tipo VARCHAR(50) NOT NULL,
+
     estado estado_notificacion_enum NOT NULL DEFAULT 'NO_LEIDA',
+
     fecha_creacion DATE NOT NULL DEFAULT CURRENT_DATE,
     fecha_lectura TIMESTAMPTZ,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -592,6 +633,43 @@ CREATE TABLE favorito (
         (profesional_id IS NOT NULL)::INTEGER +
         (servicio_id IS NOT NULL)::INTEGER = 1
     )
+);
+
+-- ============================================================
+-- TABLA: bloqueo
+-- Bloqueos temporales de slots para una fecha específica
+-- ============================================================
+
+CREATE TABLE bloqueo (
+    id SERIAL PRIMARY KEY,
+
+    negocio_id INTEGER NOT NULL,
+    profesional_id INTEGER NOT NULL,
+
+    fecha DATE NOT NULL,
+
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+
+    motivo VARCHAR(255),
+
+    estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_bloqueo_negocio
+        FOREIGN KEY (negocio_id)
+        REFERENCES negocio(id),
+
+    CONSTRAINT fk_bloqueo_profesional
+        FOREIGN KEY (profesional_id)
+        REFERENCES profesional(id),
+
+    CONSTRAINT chk_bloqueo_horas
+        CHECK (hora_fin > hora_inicio),
+
+    CONSTRAINT chk_bloqueo_estado
+        CHECK (estado IN ('ACTIVO', 'CANCELADO'))
 );
 
 -- ÍNDICES
@@ -634,4 +712,8 @@ CREATE UNIQUE INDEX uq_favorito_cliente_negocio ON favorito(cliente_id, negocio_
 CREATE UNIQUE INDEX uq_favorito_cliente_profesional ON favorito(cliente_id, profesional_id) WHERE profesional_id IS NOT NULL;
 CREATE UNIQUE INDEX uq_favorito_cliente_servicio ON favorito(cliente_id, servicio_id) WHERE servicio_id IS NOT NULL;
 
-COMMIT;	
+CREATE UNIQUE INDEX IF NOT EXISTS uq_evaluacion_habilitada_por_objetivo ON evaluacion (( SELECT NULL));
+CREATE INDEX idx_notificacion_cliente_reserva_evaluacion ON notificacion (cliente_id, reserva_id, evaluacion_id);
+
+COMMIT;
+	

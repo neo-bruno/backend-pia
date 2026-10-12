@@ -38,6 +38,7 @@ async function getNotificacionesByCliente(client, clienteId) {
       n.cliente_id,
 
       n.reserva_id,
+      n.evaluacion_id,
       n.pago_id,
       n.membresia_id,
       n.reclamo_id,
@@ -55,7 +56,21 @@ async function getNotificacionesByCliente(client, clienteId) {
       n.fecha_lectura,
 
       n.created_at,
-      n.updated_at
+      n.updated_at,
+
+      CASE
+        WHEN n.tipo = 'EVALUACION_PENDIENTE'
+          AND EXISTS (
+            SELECT 1
+            FROM calificacion c
+            WHERE c.reserva_id = n.reserva_id
+              AND c.evaluacion_id = n.evaluacion_id
+              AND c.cliente_id = n.cliente_id
+              AND c.estado = 'ACTIVA'
+          )
+        THEN TRUE
+        ELSE FALSE
+      END AS calificada
 
     FROM notificacion n
 
@@ -82,6 +97,7 @@ async function getNotificacionesNoLeidasByCliente(client, clienteId) {
       n.cliente_id,
 
       n.reserva_id,
+      n.evaluacion_id,
       n.pago_id,
       n.membresia_id,
       n.reclamo_id,
@@ -99,7 +115,21 @@ async function getNotificacionesNoLeidasByCliente(client, clienteId) {
       n.fecha_lectura,
 
       n.created_at,
-      n.updated_at
+      n.updated_at,
+
+      CASE
+        WHEN n.tipo = 'EVALUACION_PENDIENTE'
+          AND EXISTS (
+            SELECT 1
+            FROM calificacion c
+            WHERE c.reserva_id = n.reserva_id
+              AND c.evaluacion_id = n.evaluacion_id
+              AND c.cliente_id = n.cliente_id
+              AND c.estado = 'ACTIVA'
+          )
+        THEN TRUE
+        ELSE FALSE
+      END AS calificada
 
     FROM notificacion n
 
@@ -127,6 +157,7 @@ async function getNotificacionById(client, notificacionId, clienteId) {
       n.cliente_id,
 
       n.reserva_id,
+      n.evaluacion_id,
       n.pago_id,
       n.membresia_id,
       n.reclamo_id,
@@ -144,7 +175,21 @@ async function getNotificacionById(client, notificacionId, clienteId) {
       n.fecha_lectura,
 
       n.created_at,
-      n.updated_at
+      n.updated_at,
+
+      CASE
+        WHEN n.tipo = 'EVALUACION_PENDIENTE'
+          AND EXISTS (
+            SELECT 1
+            FROM calificacion c
+            WHERE c.reserva_id = n.reserva_id
+              AND c.evaluacion_id = n.evaluacion_id
+              AND c.cliente_id = n.cliente_id
+              AND c.estado = 'ACTIVA'
+          )
+        THEN TRUE
+        ELSE FALSE
+      END AS calificada
 
     FROM notificacion n
 
@@ -183,6 +228,7 @@ async function marcarComoLeida(client, notificacionId, clienteId) {
       cliente_id,
 
       reserva_id,
+      evaluacion_id,
       pago_id,
       membresia_id,
       reclamo_id,
@@ -226,6 +272,7 @@ async function marcarTodasComoLeidas(client, clienteId) {
 
     WHERE cliente_id = $1
       AND estado = 'NO_LEIDA'
+      AND tipo <> 'EVALUACION_PENDIENTE'
 
     RETURNING id
   `;
@@ -253,74 +300,54 @@ async function crearNotificacion(client, datos) {
   const query = `
     INSERT INTO notificacion (
       cliente_id,
-
       reserva_id,
+      evaluacion_id,
       pago_id,
       membresia_id,
       reclamo_id,
       promocion_id,
       descuento_id,
       servicio_id,
-
       titulo,
       mensaje,
       tipo,
-
       estado
     )
     VALUES (
-      $1,
-      $2,
-      $3,
-      $4,
-      $5,
-      $6,
-      $7,
-      $8,
-
-      $9,
-      $10,
-      $11,
-
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
       'NO_LEIDA'
     )
-
     RETURNING
       id,
       cliente_id,
-
       reserva_id,
+      evaluacion_id,
       pago_id,
       membresia_id,
       reclamo_id,
       promocion_id,
       descuento_id,
       servicio_id,
-
       titulo,
       mensaje,
       tipo,
-
       estado,
-
       fecha_creacion,
       fecha_lectura,
-
       created_at,
       updated_at
   `;
 
   const values = [
     datos.cliente_id,
-
     datos.reserva_id || null,
+    datos.evaluacion_id || null,
     datos.pago_id || null,
     datos.membresia_id || null,
     datos.reclamo_id || null,
     datos.promocion_id || null,
     datos.descuento_id || null,
     datos.servicio_id || null,
-
     datos.titulo,
     datos.mensaje,
     datos.tipo,

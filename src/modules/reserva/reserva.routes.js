@@ -19,5 +19,11 @@ const { allowRoles } = require("../../middlewares/role.middleware");
 // GET /api/reserva
 // GET /api/reserva?fecha=2026-10-05
 router.get("/", verifyToken, allowRoles("ADMIN"), controller.getReservations);
+router.get('/:id', verifyToken, allowRoles('ADMIN'), controller.getReservationById)
+
+// ============================================================
+// CAMBIAR ESTADO DE UNA RESERVA
+// ============================================================
+router.patch("/:id/estado", verifyToken, allowRoles("ADMIN"), controller.updateReservationStatus);
 
 module.exports = router;

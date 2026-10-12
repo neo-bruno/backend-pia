@@ -27,6 +27,12 @@ const condicionRoutes = require("../modules/condicion");
 const servicioArchivoRoutes = require("../modules/servicio-archivo");
 const reservaRoutes = require("../modules/reserva");
 const notificacionAdminRoutes = require("../modules/notificacion-admin");
+const comprobanteAdminRoutes = require("../modules/comprobante-admin");
+const agendaRoutes = require("../modules/agenda");
+const evaluacionRoutes = require("../modules/evaluacion");
+const tipocalificacionRoutes = require("../modules/tipo-calificacion");
+const calificacionRoutes = require("../modules/calificacion");
+const evaluacionPublicoRoutes = require("../modules/evaluacion-publico");
 
 const router = express.Router();
 
@@ -58,5 +64,11 @@ router.use("/condicion", condicionRoutes);
 router.use("/servicio-archivo", servicioArchivoRoutes);
 router.use("/reserva", reservaRoutes);
 router.use("/notificacion-admin", notificacionAdminRoutes);
+router.use("/comprobante-admin", comprobanteAdminRoutes);
+router.use("/agenda", agendaRoutes);
+router.use("/evaluacion", evaluacionRoutes);
+router.use("/tipo-calificacion", tipocalificacionRoutes);
+router.use("/calificacion", calificacionRoutes);
+router.use("/evaluacion-publico", evaluacionPublicoRoutes);
 
 module.exports = router;
