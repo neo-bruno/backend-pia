@@ -4,8 +4,6 @@
 // ============================================================
 
 const pool = require("../../database/pool");
-const notificacionService = require("../notificacion/notificacion.service");
-const { emitirNotificacionCliente } = require("../../utils/socket");
 
 // ============================================================
 // OBTENER RESERVAS DEL PROFESIONAL
@@ -327,14 +325,16 @@ const updateReservationStatus = async (profesionalId, reservaId, estado) => {
   const client = await pool.connect();
 
   let transaccionIniciada = false;
-  const notificacionesParaEmitir = [];
+  const notificacionesCreadas = [];
+  let reservaActualizada = null;
+  let clienteId = null;
 
   try {
     await client.query("BEGIN");
     transaccionIniciada = true;
 
     // ========================================================
-    // 1. VERIFICAR Y BLOQUEAR LA RESERVA
+    // OBTENER Y BLOQUEAR LA RESERVA
     // ========================================================
 
     const reservaQuery = `
@@ -344,7 +344,21 @@ const updateReservationStatus = async (profesionalId, reservaId, estado) => {
         r.estado,
         r.cliente_id,
         r.servicio_id,
-        s.nombre AS servicio_nombre
+        s.nombre AS servicio_nombre,
+        s.profesional_id,
+        (
+          SELECT h.negocio_id
+          FROM reserva_slot rs
+          INNER JOIN slot sl
+            ON sl.id = rs.slot_id
+          INNER JOIN horario_profesional hp
+            ON hp.id = sl.horario_profesional_id
+          INNER JOIN horario h
+            ON h.id = hp.horario_id
+          WHERE rs.reserva_id = r.id
+          ORDER BY rs.id
+          LIMIT 1
+        ) AS negocio_id
       FROM reserva r
       INNER JOIN servicio s
         ON s.id = r.servicio_id
@@ -361,77 +375,126 @@ const updateReservationStatus = async (profesionalId, reservaId, estado) => {
     if (!reservaResult.rows.length) {
       await client.query("COMMIT");
       transaccionIniciada = false;
-      return null;
+
+      return {
+        reserva: null,
+        notificaciones: [],
+        cliente_id: null,
+      };
     }
 
     const reserva = reservaResult.rows[0];
+    clienteId = reserva.cliente_id;
 
     // ========================================================
-    // 2. ACTUALIZAR EL ESTADO
+    // EVITAR OPERACIONES SIMULTÁNEAS DUPLICADAS
     // ========================================================
 
-    let reservaActualizada;
+    await client.query(
+      "SELECT pg_advisory_xact_lock($1::integer, $2::integer)",
+      [74102, clienteId],
+    );
 
-    if (reserva.estado !== estado) {
-      const updateQuery = `
-        UPDATE reserva
-        SET
-          estado = $2,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-        RETURNING
-          id,
-          numero,
-          fecha,
-          hora_inicio,
-          hora_fin,
-          precio_original,
-          monto_promocion,
-          monto_descuento,
-          precio_aplicable,
-          monto_pagado,
-          saldo,
-          estado,
-          created_at,
-          updated_at;
-      `;
+    // ========================================================
+    // ACTUALIZAR ESTADO DE LA RESERVA
+    // ========================================================
 
-      const updateResult = await client.query(updateQuery, [reservaId, estado]);
+    const updateQuery = `
+      UPDATE reserva
+      SET
+        estado = $2,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING
+        id,
+        numero,
+        fecha,
+        hora_inicio,
+        hora_fin,
+        precio_original,
+        monto_promocion,
+        monto_descuento,
+        precio_aplicable,
+        monto_pagado,
+        saldo,
+        estado,
+        created_at,
+        updated_at;
+    `;
 
-      reservaActualizada = updateResult.rows[0];
-    } else {
-      const actualQuery = `
-        SELECT
-          id,
-          numero,
-          fecha,
-          hora_inicio,
-          hora_fin,
-          precio_original,
-          monto_promocion,
-          monto_descuento,
-          precio_aplicable,
-          monto_pagado,
-          saldo,
-          estado,
-          created_at,
-          updated_at
-        FROM reserva
-        WHERE id = $1;
-      `;
+    const updateResult = await client.query(updateQuery, [reservaId, estado]);
 
-      const actualResult = await client.query(actualQuery, [reservaId]);
+    reservaActualizada = updateResult.rows[0];
 
-      reservaActualizada = actualResult.rows[0];
+    // ========================================================
+    // SINCRONIZAR RELACIONES RESERVA-SLOT
+    // ========================================================
+    //
+    // COMPLETADA:
+    // Conservamos las relaciones para que las consultas
+    // puedan recuperar la reserva atendida.
+    //
+    // CANCELADA / NO_ASISTIO:
+    // Liberamos la relación para permitir una nueva reserva.
+    //
+    // PENDIENTE / CONFIRMADA:
+    // Mantenemos activas las relaciones.
+    // ========================================================
+
+    const estadosQueLiberan = ["CANCELADA", "NO_ASISTIO"];
+
+    const estadosQueMantienenSlots = ["PENDIENTE", "CONFIRMADA", "COMPLETADA"];
+
+    if (estadosQueLiberan.includes(estado)) {
+      await client.query(
+        `
+        UPDATE reserva_slot
+        SET activo = FALSE
+        WHERE reserva_id = $1
+          AND activo = TRUE
+        `,
+        [reservaId],
+      );
+    } else if (estadosQueMantienenSlots.includes(estado)) {
+      await client.query(
+        `
+        UPDATE reserva_slot
+        SET activo = TRUE
+        WHERE reserva_id = $1
+          AND activo = FALSE
+        `,
+        [reservaId],
+      );
     }
 
     // ========================================================
-    // 3. GENERAR INVITACIONES PARA EVALUAR
+    // MARCAR COMO LEÍDAS LAS NOTIFICACIONES DE LA RESERVA
     // ========================================================
-    //
-    // Se revisan también las reservas que ya estaban
-    // COMPLETADAS, para permitir reconciliar invitaciones
-    // si se vuelve a procesar su estado.
+
+    if (
+      estado === "COMPLETADA" ||
+      estado === "CANCELADA" ||
+      estado === "NO_ASISTIO"
+    ) {
+      await client.query(
+        `
+        UPDATE notificacion
+        SET
+          estado = 'LEIDA',
+          fecha_lectura = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE profesional_id = $1
+          AND reserva_id = $2
+          AND tipo = 'RESERVA'
+          AND estado = 'NO_LEIDA'
+        `,
+        [profesionalId, reservaId],
+      );
+    }
+
+    // ========================================================
+    // GENERAR NOTIFICACIONES DE EVALUACIÓN
+    // CUANDO LA RESERVA SE COMPLETA
     // ========================================================
 
     if (estado === "COMPLETADA") {
@@ -445,101 +508,200 @@ const updateReservationStatus = async (profesionalId, reservaId, estado) => {
         INNER JOIN tipo_calificacion tc
           ON tc.id = e.tipo_calificacion_id
         WHERE e.estado = 'HABILITADO'
+          AND tc.estado = 'ACTIVO'
+          AND tc.objetivo IN (
+            'PIA',
+            'PROFESIONAL',
+            'NEGOCIO',
+            'SERVICIO'
+          )
         ORDER BY e.id;
       `;
 
-      const evaluacionesResult = await client.query(evaluacionesQuery);
+      const { rows: evaluaciones } = await client.query(evaluacionesQuery);
 
-      for (const evaluacion of evaluacionesResult.rows) {
-        // ----------------------------------------------------
-        // 3.1. Verificar si ya calificó este criterio
-        // ----------------------------------------------------
-
-        const calificacionQuery = `
+      for (const evaluacion of evaluaciones) {
+        // No invitar si este criterio ya fue calificado.
+        const calificacionResult = await client.query(
+          `
           SELECT 1
           FROM calificacion
           WHERE reserva_id = $1
             AND evaluacion_id = $2
-          LIMIT 1;
-        `;
-
-        const calificacionResult = await client.query(calificacionQuery, [
-          reservaId,
-          evaluacion.evaluacion_id,
-        ]);
-
-        if (calificacionResult.rows.length) {
-          continue;
-        }
-
-        // ----------------------------------------------------
-        // 3.2. Verificar si ya existe una invitación
-        // ----------------------------------------------------
-
-        const notificacionQuery = `
-          SELECT 1
-          FROM notificacion
-          WHERE cliente_id = $1
-            AND reserva_id = $2
-            AND evaluacion_id = $3
-            AND tipo = 'EVALUACION_PENDIENTE'
-          LIMIT 1;
-        `;
-
-        const notificacionResult = await client.query(notificacionQuery, [
-          reserva.cliente_id,
-          reservaId,
-          evaluacion.evaluacion_id,
-        ]);
-
-        if (notificacionResult.rows.length) {
-          continue;
-        }
-
-        // ----------------------------------------------------
-        // 3.3. Crear notificación para el cliente
-        // ----------------------------------------------------
-
-        const nombreCriterio = evaluacion.tipo_nombre || evaluacion.codigo;
-
-        const notificacionCreada = await notificacionService.crearNotificacion(
-          client,
-          {
-            cliente_id: reserva.cliente_id,
-            reserva_id: reservaId,
-            evaluacion_id: evaluacion.evaluacion_id,
-            servicio_id: reserva.servicio_id,
-
-            titulo: "¡Cuéntanos tu experiencia!",
-
-            mensaje:
-              `Tu reserva del servicio "${reserva.servicio_nombre}" ` +
-              `ha sido completada. Puedes calificar: ${nombreCriterio}.`,
-
-            tipo: "EVALUACION_PENDIENTE",
-          },
+          LIMIT 1
+          `,
+          [reservaId, evaluacion.evaluacion_id],
         );
 
-        if (notificacionCreada) {
-          notificacionesParaEmitir.push(notificacionCreada);
+        if (calificacionResult.rows.length) continue;
+
+        // ====================================================
+        // COMPROBAR SI YA EXISTE LA INVITACIÓN
+        // ====================================================
+
+        let duplicadaQuery;
+        let duplicadaValues;
+
+        switch (evaluacion.objetivo) {
+          case "PIA":
+            duplicadaQuery = `
+              SELECT 1
+              FROM notificacion
+              WHERE cliente_id = $1
+                AND evaluacion_id = $2
+                AND tipo = 'EVALUACION_PENDIENTE'
+              LIMIT 1
+            `;
+
+            duplicadaValues = [clienteId, evaluacion.evaluacion_id];
+            break;
+
+          case "PROFESIONAL":
+            duplicadaQuery = `
+              SELECT 1
+              FROM notificacion
+              WHERE cliente_id = $1
+                AND profesional_id = $2
+                AND evaluacion_id = $3
+                AND tipo = 'EVALUACION_PENDIENTE'
+              LIMIT 1
+            `;
+
+            duplicadaValues = [
+              clienteId,
+              reserva.profesional_id,
+              evaluacion.evaluacion_id,
+            ];
+            break;
+
+          case "NEGOCIO":
+            if (!reserva.negocio_id) continue;
+
+            duplicadaQuery = `
+              SELECT 1
+              FROM notificacion
+              WHERE cliente_id = $1
+                AND negocio_id = $2
+                AND evaluacion_id = $3
+                AND tipo = 'EVALUACION_PENDIENTE'
+              LIMIT 1
+            `;
+
+            duplicadaValues = [
+              clienteId,
+              reserva.negocio_id,
+              evaluacion.evaluacion_id,
+            ];
+            break;
+
+          case "SERVICIO":
+            duplicadaQuery = `
+              SELECT 1
+              FROM notificacion
+              WHERE cliente_id = $1
+                AND servicio_id = $2
+                AND evaluacion_id = $3
+                AND tipo = 'EVALUACION_PENDIENTE'
+              LIMIT 1
+            `;
+
+            duplicadaValues = [
+              clienteId,
+              reserva.servicio_id,
+              evaluacion.evaluacion_id,
+            ];
+            break;
+
+          default:
+            continue;
+        }
+
+        const duplicadaResult = await client.query(
+          duplicadaQuery,
+          duplicadaValues,
+        );
+
+        if (duplicadaResult.rows.length) continue;
+
+        // ====================================================
+        // PREPARAR NOTIFICACIÓN
+        // ====================================================
+
+        const nombreCriterio =
+          evaluacion.tipo_nombre || evaluacion.codigo || evaluacion.objetivo;
+
+        const datosNotificacion = {
+          cliente_id: clienteId,
+          reserva_id: reservaId,
+          evaluacion_id: evaluacion.evaluacion_id,
+          titulo: "¡Cuéntanos tu experiencia!",
+          mensaje: `Tu reserva del servicio "${reserva.servicio_nombre}" ha sido completada. Puedes calificar: ${nombreCriterio}.`,
+          tipo: "EVALUACION_PENDIENTE",
+        };
+
+        if (evaluacion.objetivo === "PROFESIONAL") {
+          datosNotificacion.profesional_id = reserva.profesional_id;
+        } else if (evaluacion.objetivo === "NEGOCIO") {
+          datosNotificacion.negocio_id = reserva.negocio_id;
+        } else if (evaluacion.objetivo === "SERVICIO") {
+          datosNotificacion.servicio_id = reserva.servicio_id;
+        }
+
+        // ====================================================
+        // INSERTAR NOTIFICACIÓN
+        // ====================================================
+
+        const insertNotificacionQuery = `
+          INSERT INTO notificacion (
+            cliente_id,
+            profesional_id,
+            negocio_id,
+            reserva_id,
+            evaluacion_id,
+            servicio_id,
+            titulo,
+            mensaje,
+            tipo
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *;
+        `;
+
+        const insertValues = [
+          datosNotificacion.cliente_id,
+          datosNotificacion.profesional_id || null,
+          datosNotificacion.negocio_id || null,
+          datosNotificacion.reserva_id,
+          datosNotificacion.evaluacion_id,
+          datosNotificacion.servicio_id || null,
+          datosNotificacion.titulo,
+          datosNotificacion.mensaje,
+          datosNotificacion.tipo,
+        ];
+
+        const insertResult = await client.query(
+          insertNotificacionQuery,
+          insertValues,
+        );
+
+        if (insertResult.rows[0]) {
+          notificacionesCreadas.push(insertResult.rows[0]);
         }
       }
     }
 
     // ========================================================
-    // 4. CONFIRMAR TODAS LAS OPERACIONES
+    // CONFIRMAR TRANSACCIÓN
     // ========================================================
 
     await client.query("COMMIT");
     transaccionIniciada = false;
 
-    // Emitir únicamente las notificaciones que se crearon.
-    // La transacción ya está confirmada.
-    for (const notificacion of notificacionesParaEmitir) {
-      emitirNotificacionCliente(reserva.cliente_id, notificacion);
-    }
-
-    return reservaActualizada || null;
+    return {
+      reserva: reservaActualizada,
+      notificaciones: notificacionesCreadas,
+      cliente_id: clienteId,
+    };
   } catch (error) {
     if (transaccionIniciada) {
       await client.query("ROLLBACK");

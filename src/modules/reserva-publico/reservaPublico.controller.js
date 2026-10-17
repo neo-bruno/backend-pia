@@ -180,8 +180,51 @@ const getReservationById = async (req, res) => {
   }
 };
 
+const getReservationHistory = async (req, res) => {
+  try {
+    const authorization = req.headers.authorization || "";
+
+    let token = null;
+
+    if (authorization.startsWith("Bearer ")) {
+      token = authorization.substring(7);
+    }
+
+    if (!token) {
+      token = req.headers["x-cliente-token"] || null;
+    }
+
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        code: "CLIENTE_NO_AUTENTICADO",
+        message: "El cliente no está autenticado.",
+      });
+    }
+
+    const resultado = await service.getReservationHistory({
+      token,
+    });
+
+    return res.status(200).json({
+      ok: true,
+      data: resultado,
+    });
+  } catch (error) {
+    console.error("ERROR OBTENIENDO HISTORIAL:", error);
+
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      code: error.code || "ERROR_HISTORIAL",
+      message: error.message || "No se pudo obtener el historial.",
+    });
+  }
+};
+
 module.exports = {
   confirmReservation,
   getReservations,
   getReservationById,
+
+  getReservationHistory,
 };

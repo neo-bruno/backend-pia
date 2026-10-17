@@ -175,13 +175,14 @@ async function getServicioReserva(client, servicioId) {
 }
 
 // =====================================================
-// SLOTS
+// SLOTS PARA VALIDAR UNA RESERVA PÚBLICA
+// Comprueba reservas y bloqueos de una fecha concreta.
+// No modifica slot.estado.
 // =====================================================
 
 async function getSlotsForReservation(client, slotIds, profesionalId, fecha) {
   const query = `
     SELECT
-
       s.id AS slot_id,
       s.hora_inicio,
       s.hora_fin,
@@ -196,6 +197,7 @@ async function getSlotsForReservation(client, slotIds, profesionalId, fecha) {
       h.hora_inicio AS horario_inicio,
       h.hora_fin AS horario_fin,
 
+      -- Reserva activa en el slot.
       EXISTS (
         SELECT 1
         FROM reserva_slot rs
@@ -203,8 +205,27 @@ async function getSlotsForReservation(client, slotIds, profesionalId, fecha) {
           ON r.id = rs.reserva_id
         WHERE rs.slot_id = s.id
           AND rs.activo = TRUE
-          AND r.estado IN ('PENDIENTE', 'CONFIRMADA')
-      ) AS reservado
+          AND r.fecha = $3::DATE
+          AND r.estado IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA')
+      ) AS reservado,
+
+      -- Bloqueo activo para el día solicitado.
+      EXISTS (
+        SELECT 1
+        FROM reserva_slot rs
+        INNER JOIN bloqueo b
+          ON b.id = rs.bloqueo_id
+        INNER JOIN horario hb
+          ON hb.negocio_id = b.negocio_id
+        WHERE rs.slot_id = s.id
+          AND rs.activo = TRUE
+          AND b.profesional_id = hp.profesional_id
+          AND hb.negocio_id = h.negocio_id
+          AND b.fecha = $3::DATE
+          AND b.estado = 'ACTIVO'
+          AND s.hora_inicio < b.hora_fin
+          AND s.hora_fin > b.hora_inicio
+      ) AS bloqueado
 
     FROM slot s
 
@@ -215,16 +236,11 @@ async function getSlotsForReservation(client, slotIds, profesionalId, fecha) {
       ON h.id = hp.horario_id
 
     WHERE s.id = ANY($1::INTEGER[])
-
       AND hp.profesional_id = $2
-
       AND h.dia_semana =
-        EXTRACT(
-          ISODOW FROM $3::DATE
-        )::INTEGER
+        EXTRACT(ISODOW FROM $3::DATE)::INTEGER
 
-    ORDER BY
-      s.hora_inicio ASC
+    ORDER BY s.hora_inicio ASC
 
     FOR UPDATE OF s
   `;
@@ -731,7 +747,6 @@ async function getReservaCompleta(client, reservaId) {
 async function getReservationsByCliente(client, clienteId) {
   const query = `
     SELECT
-
       r.id,
       r.numero,
       r.fecha,
@@ -744,33 +759,22 @@ async function getReservationsByCliente(client, clienteId) {
       r.precio_aplicable,
       r.monto_pagado,
       r.saldo,
-
       r.estado,
 
-      -- =============================================
       -- SERVICIO
-      -- =============================================
-
       s.id AS servicio_id,
       s.nombre AS servicio_nombre,
       s.descripcion AS servicio_descripcion,
       s.duracion AS servicio_duracion,
       s.precio AS servicio_precio,
 
-      -- =============================================
       -- PROFESIONAL
-      -- =============================================
-
       p.id AS profesional_id,
       p.slug AS profesional_slug,
       p.foto AS profesional_foto,
-
       per.nombre AS profesional_nombre,
 
-      -- =============================================
       -- NEGOCIO
-      -- =============================================
-
       n.id AS negocio_id,
       n.nombre AS negocio_nombre,
       n.direccion AS negocio_direccion,
@@ -778,10 +782,7 @@ async function getReservationsByCliente(client, clienteId) {
       n.logo AS negocio_logo,
       n.portada AS negocio_portada,
 
-      -- =============================================
       -- CANTIDAD DE SLOTS
-      -- =============================================
-
       (
         SELECT COUNT(*)
         FROM reserva_slot rs2

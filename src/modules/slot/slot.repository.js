@@ -57,26 +57,7 @@ const getSlotsByProfesionalId = async (client, profesionalId) => {
 
       s.duracion,
 
-      -- =================================================
-      -- ESTADO REAL DEL SLOT
-      -- =================================================
-
-      CASE
-        WHEN EXISTS (
-          SELECT 1
-          FROM reserva_slot rs
-
-          INNER JOIN reserva r
-            ON r.id = rs.reserva_id
-
-          WHERE rs.slot_id = s.id
-            AND rs.activo = TRUE
-            AND r.estado = 'CONFIRMADA'
-        )
-        THEN 'OCUPADO'
-
-        ELSE s.estado
-      END AS slot_estado
+      s.estado AS slot_estado
 
     FROM horario_profesional hp
 
@@ -206,20 +187,8 @@ const getSlotsActuales = async (client, profesionalId) => {
       TO_CHAR(s.hora_fin, 'HH24:MI') AS hora_fin,
 
       s.duracion,
-
-      CASE
-        WHEN EXISTS (
-          SELECT 1
-          FROM reserva_slot rs
-          INNER JOIN reserva r
-            ON r.id = rs.reserva_id
-          WHERE rs.slot_id = s.id
-            AND rs.activo = TRUE
-            AND r.estado = 'CONFIRMADA'
-        )
-        THEN 'OCUPADO'
-        ELSE s.estado
-      END AS estado
+      
+      s.estado AS slot_estado
 
     FROM slot s
 
@@ -394,6 +363,27 @@ const eliminarSlot = async (client, slotId) => {
   return rows[0] || null;
 };
 
+/**
+ * Comprueba si el slot tiene alguna relación con una reserva.
+ *
+ * No filtra por activo ni por estado de la reserva:
+ * PostgreSQL no permite eliminar el slot mientras exista
+ * una referencia en reserva_slot.
+ */
+const tieneRelacionReserva = async (client, slotId) => {
+  const query = `
+    SELECT EXISTS (
+      SELECT 1
+      FROM reserva_slot rs
+      WHERE rs.slot_id = $1
+    ) AS tiene_reserva
+  `;
+
+  const { rows } = await client.query(query, [slotId]);
+
+  return rows[0]?.tiene_reserva === true;
+};
+
 // =====================================================
 // EXPORT
 // =====================================================
@@ -416,4 +406,5 @@ module.exports = {
   modificarSlot,
 
   eliminarSlot,
+  tieneRelacionReserva,
 };

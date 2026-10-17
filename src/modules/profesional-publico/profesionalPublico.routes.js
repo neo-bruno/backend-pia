@@ -4,9 +4,11 @@ const controller = require("./profesionalPublico.controller");
 const upload = require("../../middlewares/profesional.upload");
 const router = express.Router();
 
-router.get('/todos', controller.getProfessionals)
+router.get("/todos", controller.getProfessionals);
 router.get("/verificar-codigo/:codigo", controller.getVerificationCode);
-router.get('/buscar/slug/:slug', controller.getProfessionalBySlug)
+router.get("/buscar/slug/:slug", controller.getProfessionalBySlug);
+
+router.get("/:profesionalId/resenas", controller.getResenasProfesional);
 
 router.post("/", upload.single("comprobante"), controller.saveProfessional);
 

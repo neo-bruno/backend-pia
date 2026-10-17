@@ -30,6 +30,7 @@ CREATE TYPE estado_notificacion_enum AS ENUM ('LEIDA','NO_LEIDA');
 CREATE TYPE tipo_servicio_archivo_enum AS ENUM ('FOTO', 'VIDEO');
 CREATE TYPE objetivo_calificacion_enum AS ENUM ('PROFESIONAL', 'SERVICIO', 'NEGOCIO', 'PIA');
 CREATE TYPE estado_evaluacion_enum AS ENUM ('HABILITADO', 'DESHABILITADO');
+CREATE TYPE tipo_descuento_enum AS ENUM ('CLIENTE', 'PUBLICO');
 
 CREATE TABLE rol (
     id SERIAL PRIMARY KEY,
@@ -287,21 +288,62 @@ CREATE TABLE promocion (
 
 CREATE TABLE descuento (
     id SERIAL PRIMARY KEY,
-    cliente_id INTEGER REFERENCES cliente(id),
-    servicio_id INTEGER NOT NULL REFERENCES servicio(id),
-    codigo VARCHAR(50) NOT NULL UNIQUE,
-    monto NUMERIC(12,2),
-    porcentaje NUMERIC(5,2),
-    descripcion TEXT,
+    negocio_id INTEGER NOT NULL REFERENCES negocio(id),
+    profesional_id INTEGER NOT NULL REFERENCES profesional(id),
+
+    codigo VARCHAR(50) NOT NULL UNIQUE,		
+		titulo VARCHAR(250),
+		descripcion TEXT,
+		
+    monto NUMERIC(12,2),		
+    porcentaje NUMERIC(5,2),    
+
     fecha_inicio DATE,
     fecha_fin DATE,
+
     estado estado_descuento_enum NOT NULL DEFAULT 'ACTIVO',
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT chk_descuento_fechas CHECK (fecha_fin IS NULL OR fecha_inicio IS NULL OR fecha_fin >= fecha_inicio),
     CONSTRAINT chk_descuento_uno CHECK ((monto IS NOT NULL AND porcentaje IS NULL) OR (monto IS NULL AND porcentaje IS NOT NULL)),
     CONSTRAINT chk_descuento_monto CHECK (monto IS NULL OR monto >= 0),
     CONSTRAINT chk_descuento_porcentaje CHECK (porcentaje IS NULL OR porcentaje BETWEEN 0 AND 100)
+);
+
+CREATE TABLE descuento_servicio (
+    id SERIAL PRIMARY KEY,
+
+    servicio_id INTEGER NOT NULL REFERENCES servicio(id),
+    descuento_id INTEGER NOT NULL REFERENCES descuento(id),
+
+    tipo_descuento tipo_descuento_enum NOT NULL DEFAULT 'CLIENTE',
+    estado estado_descuento_enum NOT NULL DEFAULT 'ACTIVO',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_descuento_servicio UNIQUE (servicio_id, descuento_id)
+);
+
+
+CREATE TABLE descuento_servicio_cliente (
+    id SERIAL PRIMARY KEY,
+		
+    descuento_servicio_id INTEGER NOT NULL REFERENCES descuento_servicio(id),
+    cliente_id INTEGER REFERENCES cliente(id),
+
+    fecha_aplicada DATE DEFAULT CURRENT_DATE,
+    hora_aplicada TIME DEFAULT CURRENT_TIME,
+
+    codigo_aplicado VARCHAR(50),
+    monto_aplicado NUMERIC(12,2),
+
+    estado_asignacion estado_descuento_enum NOT NULL DEFAULT 'ACTIVO',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_descuento_aplicado_monto CHECK (monto_aplicado >= 0)
 );
 
 CREATE TABLE reserva (
@@ -326,16 +368,26 @@ CREATE TABLE reserva (
 
 CREATE TABLE reserva_slot (
     id SERIAL PRIMARY KEY,
-		
-    reserva_id INTEGER NULL REFERENCES reserva(id) ON DELETE CASCADE,
-    slot_id INTEGER NOT NULL REFERENCES slot(id),
-    bloqueo_id INTEGER NULL REFERENCES bloqueo(id) ON DELETE CASCADE,
+
+    reserva_id INTEGER NULL
+        REFERENCES reserva(id) ON DELETE CASCADE,
+
+    slot_id INTEGER NOT NULL
+        REFERENCES slot(id),
+
+    bloqueo_id INTEGER NULL
+        REFERENCES bloqueo(id) ON DELETE CASCADE,
 
     orden INTEGER NOT NULL,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_reserva_slot UNIQUE (reserva_id, slot_id),
-    CONSTRAINT chk_reserva_slot_orden CHECK (orden > 0),
+
+    CONSTRAINT uq_reserva_slot
+        UNIQUE (reserva_id, slot_id),
+
+    CONSTRAINT chk_reserva_slot_orden
+        CHECK (orden > 0),
 
     CONSTRAINT chk_reserva_slot_origen
         CHECK (
@@ -714,6 +766,8 @@ CREATE UNIQUE INDEX uq_favorito_cliente_servicio ON favorito(cliente_id, servici
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_evaluacion_habilitada_por_objetivo ON evaluacion (( SELECT NULL));
 CREATE INDEX idx_notificacion_cliente_reserva_evaluacion ON notificacion (cliente_id, reserva_id, evaluacion_id);
+
+CREATE UNIQUE INDEX uq_descuento_servicio_cliente_activo ON descuento_servicio_cliente (descuento_servicio_id, cliente_id) WHERE estado_aplicado = 'ACTIVO';
 
 COMMIT;
 	

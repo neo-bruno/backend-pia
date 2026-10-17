@@ -33,6 +33,14 @@ const evaluacionRoutes = require("../modules/evaluacion");
 const tipocalificacionRoutes = require("../modules/tipo-calificacion");
 const calificacionRoutes = require("../modules/calificacion");
 const evaluacionPublicoRoutes = require("../modules/evaluacion-publico");
+const bloqueoRoutes = require("../modules/bloqueo");
+const clienteAdminRoutes = require("../modules/cliente-admin");
+const segmentacionRoutes = require("../modules/segmentacion");
+const descuentoRoutes = require("../modules/descuento");
+const descuentoServicioRoutes = require("../modules/descuento-servicio");
+const descuentoServicioClienteRoutes = require("../modules/descuento-servicio-cliente");
+const descuentoClienteRoutes = require("../modules/descuento-cliente");
+const perfilRoutes = require("../modules/perfil");
 
 const router = express.Router();
 
@@ -70,5 +78,13 @@ router.use("/evaluacion", evaluacionRoutes);
 router.use("/tipo-calificacion", tipocalificacionRoutes);
 router.use("/calificacion", calificacionRoutes);
 router.use("/evaluacion-publico", evaluacionPublicoRoutes);
+router.use("/bloqueo", bloqueoRoutes);
+router.use("/cliente-admin", clienteAdminRoutes);
+router.use("/segmentacion", segmentacionRoutes);
+router.use("/descuento", descuentoRoutes);
+router.use("/descuento-servicio", descuentoServicioRoutes);
+router.use("/descuento-servicio-cliente", descuentoServicioClienteRoutes);
+router.use("/descuento-cliente", descuentoClienteRoutes);
+router.use("/perfil", perfilRoutes);
 
 module.exports = router;

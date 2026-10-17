@@ -11,10 +11,16 @@ const router = express.Router();
 router.post("/", upload.single("comprobante"), controller.confirmReservation);
 
 // =====================================================
-// RESERVAS DEL CLIENTE
+// RESERVAS PRÓXIMAS DEL CLIENTE
 // =====================================================
 
 router.get("/", controller.getReservations);
+
+// =====================================================
+// HISTORIAL DE RESERVAS DEL CLIENTE
+// =====================================================
+
+router.get("/historial", controller.getReservationHistory);
 
 // =====================================================
 // DETALLE DE UNA RESERVA

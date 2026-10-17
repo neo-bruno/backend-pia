@@ -1324,6 +1324,113 @@ async function getProfessionalBySlug(slug) {
   };
 }
 
+// =====================================================
+// RESEÑAS DE UN PROFESIONAL
+// =====================================================
+async function getResumenResenasProfesional(profesionalId) {
+  const query = `
+    SELECT
+      COALESCE(
+        ROUND(AVG(c.puntaje), 1),
+        0
+      ) AS promedio,
+
+      COUNT(c.id)::INTEGER AS total_resenas,
+
+      COUNT(c.id) FILTER (
+        WHERE c.puntaje >= 4.5
+      )::INTEGER AS estrellas_5,
+
+      COUNT(c.id) FILTER (
+        WHERE c.puntaje >= 3.5
+          AND c.puntaje < 4.5
+      )::INTEGER AS estrellas_4,
+
+      COUNT(c.id) FILTER (
+        WHERE c.puntaje >= 2.5
+          AND c.puntaje < 3.5
+      )::INTEGER AS estrellas_3,
+
+      COUNT(c.id) FILTER (
+        WHERE c.puntaje >= 1.5
+          AND c.puntaje < 2.5
+      )::INTEGER AS estrellas_2,
+
+      COUNT(c.id) FILTER (
+        WHERE c.puntaje < 1.5
+      )::INTEGER AS estrellas_1
+
+    FROM calificacion c
+
+    INNER JOIN evaluacion e
+      ON e.id = c.evaluacion_id
+
+    INNER JOIN tipo_calificacion tc
+      ON tc.id = e.tipo_calificacion_id
+
+    WHERE c.profesional_id = $1
+      AND tc.codigo = 'ATENCION'
+      AND tc.objetivo = 'PROFESIONAL'
+      AND tc.estado = 'ACTIVO'
+      AND e.estado = 'HABILITADO'
+      AND c.estado = 'ACTIVA';
+  `;
+
+  const { rows } = await pool.query(query, [profesionalId]);
+
+  return rows[0];
+}
+
+// =====================================================
+// LISTAR RESEÑAS DE UN PROFESIONAL
+// =====================================================
+async function getResenasProfesional(profesionalId) {
+  const query = `
+    SELECT
+      c.id,
+      c.puntaje,
+      c.titulo,
+      c.observacion,
+      c.fecha,
+      c.hora,
+      c.created_at,
+
+      COALESCE(
+        NULLIF(TRIM(cl.alias), ''),
+        'Cliente'
+      ) AS cliente_nombre
+
+    FROM calificacion c
+
+    INNER JOIN evaluacion e
+      ON e.id = c.evaluacion_id
+
+    INNER JOIN tipo_calificacion tc
+      ON tc.id = e.tipo_calificacion_id
+
+    LEFT JOIN cliente cl
+      ON cl.id = c.cliente_id
+
+    WHERE c.profesional_id = $1
+      AND tc.codigo = 'ATENCION'
+      AND tc.objetivo = 'PROFESIONAL'
+      AND tc.estado = 'ACTIVO'
+      AND e.estado = 'HABILITADO'
+      AND c.estado = 'ACTIVA'
+
+    ORDER BY
+      c.fecha DESC NULLS LAST,
+      c.hora DESC NULLS LAST,
+      c.created_at DESC,
+      c.id DESC;
+  `;
+
+  const { rows } = await pool.query(query, [profesionalId]);
+
+  return rows;
+}
+
+
 module.exports = {
   getNegocioByCodigo,
   getNegocioById,
@@ -1346,4 +1453,7 @@ module.exports = {
   createComprobante,
   getProfessionalBySlug,
   getProfessionals,  
+
+  getResumenResenasProfesional,
+  getResenasProfesional,
 };

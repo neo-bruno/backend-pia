@@ -15,6 +15,31 @@ const nombresDias = [
   "Domingo",
 ];
 
+const obtenerMensajeErrorSlot = (error) => {
+  if (
+    error.code === "23505" &&
+    error.constraint === "uq_slot_horario_profesional_hora"
+  ) {
+    return {
+      status: 409,
+      mensaje:
+        "No se pudieron guardar los horarios porque existe una hora duplicada. Revisa los horarios y elimina las horas repetidas antes de continuar.",
+    };
+  }
+
+  if (error.status === 409) {
+    return {
+      status: 409,
+      mensaje: error.message,
+    };
+  }
+
+  return {
+    status: 500,
+    mensaje: "No se pudieron guardar los horarios. Inténtalo nuevamente.",
+  };
+};
+
 // =====================================================
 // OBTENER SLOTS
 // =====================================================
@@ -146,15 +171,8 @@ const getSlots = async (profesionalId) => {
 // =====================================================
 const saveSlots = async (profesionalId, slots) => {
   const client = await pool.connect();
-  console.log("========================================");
-console.log("SERVICE SAVE SLOTS");
-console.log("PID:", process.pid);
-console.log("FILE:", __filename);
-console.log("SLOTS RECIBIDOS:");
-console.log(JSON.stringify(slots, null, 2));
-console.log("========================================");
+
   try {
-    
     await client.query("BEGIN");
 
     // =====================================================
@@ -227,16 +245,16 @@ console.log("========================================");
       };
     });
 
-        console.log("====================================");
+    console.log("====================================");
     console.log("SLOTS NORMALIZADOS");
     console.log(
       JSON.stringify(
-        slotsNormalizados.filter(
-          (slot) => [56, 57, 58].includes(Number(slot.slot_id))
+        slotsNormalizados.filter((slot) =>
+          [56, 57, 58].includes(Number(slot.slot_id)),
         ),
         null,
-        2
-      )
+        2,
+      ),
     );
     console.log("====================================");
 
@@ -304,19 +322,6 @@ console.log("========================================");
     // =====================================================
 
     const actuales = await repository.getSlotsActuales(client, profesionalId);
-
-    console.log("====================================");
-console.log("SLOTS ACTUALES BD");
-console.log(
-  JSON.stringify(
-    actuales.filter(
-      (slot) => [56, 57, 58].includes(Number(slot.slot_id))
-    ),
-    null,
-    2
-  )
-);
-console.log("====================================");
 
     const actualesMap = new Map();
 
@@ -445,7 +450,6 @@ console.log("====================================");
       // ---------------------------------------------------
       // MODIFICAR
       // ---------------------------------------------------
-     
 
       const modificado = await repository.modificarSlot(
         client,
@@ -461,7 +465,7 @@ console.log("====================================");
 
           estado: slot.estado,
         },
-      );      
+      );
       modificados++;
     }
 
@@ -472,44 +476,35 @@ console.log("====================================");
     for (const slotActual of actuales) {
       const slotId = Number(slotActual.slot_id);
 
-      // ---------------------------------------------------
-      // SIGUE EXISTIENDO
-      // ---------------------------------------------------
-
+      // Si sigue presente en la solicitud, no se elimina.
       if (idsDeseados.has(slotId)) {
         continue;
       }
 
-      // ---------------------------------------------------
-      // OCUPADO
-      // ---------------------------------------------------
-
-      if (slotActual.estado === "OCUPADO") {
-        const error = new Error(
-          `No se puede eliminar el slot ${slotId} porque está ocupado`,
-        );
-
-        error.status = 409;
-
-        throw error;
-      }
-
-      // ---------------------------------------------------
-      // RESERVA CONFIRMADA
-      // ---------------------------------------------------
-
-      const tieneReserva = await repository.tieneReservaConfirmada(
+      // No eliminar slots con reservas relacionadas.
+      // Se conservan incluso si la reserva está inactiva
+      // o ya no está confirmada.
+      const tieneReserva = await repository.tieneRelacionReserva(
         client,
         slotId,
       );
 
       if (tieneReserva) {
         const error = new Error(
-          `No se puede eliminar el slot ${slotId} porque tiene una reserva confirmada`,
+          `No se puede eliminar el horario de ${slotActual.hora_inicio} a ${slotActual.hora_fin}, porque tiene reservas vinculadas. Para proteger las reservas existentes, debes resolverlas antes de eliminar este horario.`,
         );
 
         error.status = 409;
+        throw error;
+      }
 
+      // Protección adicional para slots ocupados.
+      if (slotActual.slot_estado === "OCUPADO") {
+        const error = new Error(
+          `No se puede eliminar el slot ${slotId} porque está ocupado.`,
+        );
+
+        error.status = 409;
         throw error;
       }
 
@@ -571,19 +566,12 @@ console.log("====================================");
       slots: slotsFinales,
     };
   } catch (error) {
-    console.error("====================================");
+    await client.query("ROLLBACK");
 
-    console.error("ERROR SAVE SLOTS");
+    const errorAmigable = obtenerMensajeErrorSlot(error);
 
-    console.error(error);
-
-    console.error("====================================");
-
-    try {
-      await client.query("ROLLBACK");
-    } catch (rollbackError) {
-      console.error("ERROR ROLLBACK:", rollbackError);
-    }
+    error.status = errorAmigable.status;
+    error.message = errorAmigable.mensaje;
 
     throw error;
   } finally {

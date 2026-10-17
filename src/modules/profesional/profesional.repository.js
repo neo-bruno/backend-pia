@@ -706,9 +706,7 @@ const getDataProfessional = async (client, profesionalId) => {
     SELECT
       p.id,
       p.persona_id,
-
       per.nombre,
-
       p.slug,
       p.foto,
       p.portada,
@@ -716,13 +714,10 @@ const getDataProfessional = async (client, profesionalId) => {
       p.descripcion,
       p.lema,
       p.pago_qr,
-
       p.estado,
       p.estado_funciones,
 
-      /* ============================
-         EXPERIENCIA
-         ============================ */
+      /* EXPERIENCIA */
       CASE
         WHEN p.fecha_trabajo IS NULL THEN 0
         ELSE DATE_PART(
@@ -731,9 +726,7 @@ const getDataProfessional = async (client, profesionalId) => {
         )::INTEGER
       END AS anios_experiencia,
 
-      /* ============================
-         TIPOS DE PROFESIONAL
-         ============================ */
+      /* TIPOS DE PROFESIONAL */
       COALESCE(
         (
           SELECT JSON_AGG(
@@ -753,40 +746,45 @@ const getDataProfessional = async (client, profesionalId) => {
         '[]'::json
       ) AS tipos,
 
-      /* ============================
-         CALIFICACIÓN ATENCIÓN
-         ============================ */
+      /* CALIFICACIÓN PROMEDIO */
       COALESCE(
         (
           SELECT ROUND(AVG(c.puntaje), 2)
           FROM calificacion c
+          INNER JOIN evaluacion e
+            ON e.id = c.evaluacion_id
           INNER JOIN tipo_calificacion tc
-            ON tc.id = c.tipo_calificacion_id
+            ON tc.id = e.tipo_calificacion_id
           WHERE c.profesional_id = p.id
-            AND tc.nombre ILIKE 'Atención'
+            AND tc.codigo = 'ATENCION'
+            AND tc.objetivo = 'PROFESIONAL'
             AND tc.estado = 'ACTIVO'
+            AND e.estado = 'HABILITADO'
             AND c.estado = 'ACTIVA'
         ),
         0
       ) AS calificacion,
 
+      /* CANTIDAD DE CALIFICACIONES */
       COALESCE(
         (
           SELECT COUNT(*)
           FROM calificacion c
+          INNER JOIN evaluacion e
+            ON e.id = c.evaluacion_id
           INNER JOIN tipo_calificacion tc
-            ON tc.id = c.tipo_calificacion_id
+            ON tc.id = e.tipo_calificacion_id
           WHERE c.profesional_id = p.id
-            AND tc.nombre ILIKE 'Atención'
+            AND tc.codigo = 'ATENCION'
+            AND tc.objetivo = 'PROFESIONAL'
             AND tc.estado = 'ACTIVO'
+            AND e.estado = 'HABILITADO'
             AND c.estado = 'ACTIVA'
         ),
         0
       ) AS cantidad_calificaciones,
 
-      /* ============================
-         CLIENTES ATENDIDOS
-         ============================ */
+      /* CLIENTES ATENDIDOS */
       COALESCE(
         (
           SELECT COUNT(DISTINCT h.cliente_id)

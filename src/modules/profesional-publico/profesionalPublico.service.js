@@ -4,7 +4,7 @@ const repository = require("./profesionalPublico.repository");
 
 const {
   validateRegistroProfesional,
-  validateVerificationCode,  
+  validateVerificationCode,
 } = require("./profesionalPublico.validation");
 
 // profesional.service.js
@@ -343,9 +343,39 @@ async function saveProfessional(data, file) {
   }
 }
 
+// =====================================================
+// OBTENER RESEÑAS DE UN PROFESIONAL
+// =====================================================
+async function getResenasProfesional(profesionalId) {
+  const [resumen, resenas] = await Promise.all([
+    repository.getResumenResenasProfesional(profesionalId),
+    repository.getResenasProfesional(profesionalId),
+  ]);
+
+  return {
+    promedio: Number(resumen?.promedio || 0),
+    total_resenas: Number(resumen?.total_resenas || 0),
+
+    distribucion: {
+      5: Number(resumen?.estrellas_5 || 0),
+      4: Number(resumen?.estrellas_4 || 0),
+      3: Number(resumen?.estrellas_3 || 0),
+      2: Number(resumen?.estrellas_2 || 0),
+      1: Number(resumen?.estrellas_1 || 0),
+    },
+
+    resenas: resenas.map((resena) => ({
+      ...resena,
+      puntaje: Number(resena.puntaje || 0),
+    })),
+  };
+}
+
 module.exports = {
   getProfessionals,
   getProfessionalBySlug,
   verifyBusinessCode,
   saveProfessional,
+
+  getResenasProfesional,
 };

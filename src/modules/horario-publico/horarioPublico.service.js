@@ -250,47 +250,65 @@ const getAvailableSchedule = async (
       slug: rows[0].profesional_slug,
 
       foto: rows[0].profesional_foto,
-      
-      pago_qr: rows[0].profesional_pago_qr
+
+      pago_qr: rows[0].profesional_pago_qr,
+
+      // ================================================
+      // EVALUACIÓN DEL PROFESIONAL
+      // ================================================
+      calificacion_promedio: Number(
+        rows[0].profesional_calificacion_promedio || 0,
+      ),
+
+      total_resenas: Number(rows[0].profesional_total_resenas || 0),
     };
 
     // ========================================================
     // TRANSFORMAR SLOTS
     // ========================================================
-
     let horarios = rows.map((row) => {
       let estado = row.slot_estado;
 
       let reservaId = null;
-
       let clienteNombre = null;
 
       // ======================================================
-      // RESERVA CONFIRMADA
+      // RESERVA ASOCIADA AL SLOT
       // ======================================================
 
-      if (row.reserva_id && row.reserva_estado === "CONFIRMADA") {
+      if (row.reserva_id) {
         reservaId = Number(row.reserva_id);
+        clienteNombre = row.reserva_cliente_nombre;
 
-        // ====================================================
-        // MI RESERVA
-        // ====================================================
-
-        if (clienteId && Number(row.reserva_cliente_id) === Number(clienteId)) {
+        if (row.reserva_estado === "COMPLETADA") {
+          estado = "COMPLETADA";
+        } else if (
+          clienteId &&
+          Number(row.reserva_cliente_id) === Number(clienteId)
+        ) {
           estado = "MI_RESERVA";
-
-          clienteNombre = row.reserva_cliente_nombre;
+        } else if (row.reserva_estado === "PENDIENTE") {
+          estado = "PENDIENTE";
         } else {
-          // ==================================================
-          // RESERVA DE OTRO CLIENTE
-          // ==================================================
-
           estado = "OCUPADO";
         }
       }
 
       // ======================================================
-      // BLOQUEADO
+      // BLOQUEO ASOCIADO AL SLOT
+      // El bloqueo tiene prioridad sobre la disponibilidad.
+      // ======================================================
+
+      if (row.bloqueo_id) {
+        estado = "BLOQUEADO";
+
+        // Un bloqueo no es una reserva de cliente.
+        reservaId = null;
+        clienteNombre = null;
+      }
+
+      // ======================================================
+      // ESTADO BLOQUEADO DEL SLOT
       // ======================================================
 
       if (row.slot_estado === "BLOQUEADO") {
@@ -299,35 +317,34 @@ const getAvailableSchedule = async (
 
       return {
         slot_id: Number(row.slot_id),
-
         horario_profesional_id: Number(row.horario_profesional_id),
-
         horario_id: Number(row.horario_id),
-
         turno: row.turno,
 
         hora_inicio: row.slot_inicio,
-
         hora_fin: row.slot_fin,
-
         duracion: Number(row.slot_duracion),
 
         estado,
 
         reserva_id: reservaId,
-
         cliente_nombre: clienteNombre,
 
-        // Se agregará después
+        // Información para las tarjetas públicas
+        servicio_nombre: row.reserva_servicio_nombre || null,
+        motivo: row.bloqueo_motivo || null,
+
+        // Datos del bloqueo
+        bloqueo_id: row.bloqueo_id ? Number(row.bloqueo_id) : null,
+
+        bloqueo_fecha: row.bloqueo_fecha || null,
+        bloqueo_hora_inicio: row.bloqueo_hora_inicio || null,
+        bloqueo_hora_fin: row.bloqueo_hora_fin || null,
+
         seleccionable: false,
-
         slots_requeridos: null,
-
         slots_reserva: [],
-
         hora_fin_servicio: null,
-
-        motivo: null,
       };
     });
 

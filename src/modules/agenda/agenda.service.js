@@ -109,18 +109,21 @@ const getAgenda = async (profesionalId, fecha) => {
 
         let estado = "DISPONIBLE";
 
-        // 1. Una reserva real ocupa el slot únicamente para esa fecha.
+        // 1. La reserva del día determina el estado visual.
         if (row.reserva_id !== null) {
-          estado = "OCUPADO";
+          if (row.reserva_estado === "COMPLETADA") {
+            estado = "COMPLETADA";
+          } else {
+            estado = "OCUPADO";
+          }
 
-          // 2. El estado configurado del slot pertenece al horario semanal.
-          //    Si el slot fue configurado como OCUPADO, debe mostrarse
-          //    ocupado en todas las fechas que utilicen ese horario.
+          // 2. Bloqueo para la fecha concreta.
+        } else if (row.bloqueo_id !== null && row.bloqueo_estado === "ACTIVO") {
+          estado = "BLOQUEADO";
+
+          // 3. Configuración semanal del slot.
         } else if (row.slot_estado_configuracion === "OCUPADO") {
           estado = "OCUPADO";
-
-          // 3. Si el slot está configurado como BLOQUEADO,
-          //    se mantiene bloqueado.
         } else if (row.slot_estado_configuracion === "BLOQUEADO") {
           estado = "BLOQUEADO";
         }
@@ -131,6 +134,17 @@ const getAgenda = async (profesionalId, fecha) => {
           hora_fin: row.slot_fin,
           duracion: Number(row.slot_duracion),
           estado,
+
+          bloqueo:
+            row.bloqueo_id !== null
+              ? {
+                  id: Number(row.bloqueo_id),
+                  hora_inicio: row.bloqueo_hora_inicio,
+                  hora_fin: row.bloqueo_hora_fin,
+                  motivo: row.bloqueo_motivo,
+                  estado: row.bloqueo_estado,
+                }
+              : null,
         });
 
         if (row.reserva_id !== null) {

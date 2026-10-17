@@ -41,10 +41,6 @@ const getSlots = async (req, res) => {
 // =====================================================
 const saveSlots = async (req, res) => {
   try {
-    console.log("========== BODY REAL RECIBIDO ==========");
-    console.log(JSON.stringify(req.body, null, 2));
-    console.log("=========================================");
-
     const profesionalId = req.usuario?.profesional_id;
 
     if (!profesionalId) {
@@ -56,13 +52,6 @@ const saveSlots = async (req, res) => {
     }
 
     const slots = req.slots;    
-    console.log("========================================");
-console.log("CONTROLLER SAVE SLOT");
-console.log("PID:", process.pid);
-console.log("FILE:", __filename);
-console.log("BODY RECIBIDO:");
-console.log(JSON.stringify(req.body, null, 2));
-console.log("========================================");
     const data = await service.saveSlots(profesionalId, slots);
 
     return res.status(200).json({

@@ -4,6 +4,7 @@
 // ============================================================
 
 const repository = require("./reserva.repository");
+const { emitirNotificacionCliente } = require("../../utils/socket");
 
 // ============================================================
 // VALIDAR FECHA
@@ -118,21 +119,24 @@ const updateReservationStatus = async (profesionalId, reservaId, estado) => {
     throw error;
   }
 
-  const reserva = await repository.updateReservationStatus(
+  const resultado = await repository.updateReservationStatus(
     profesionalId,
     id,
     estado,
   );
 
-  if (!reserva) {
+  if (!resultado?.reserva) {
     const error = new Error("Reserva no encontrada");
-
     error.status = 404;
-
     throw error;
   }
 
-  return reserva;
+  // Socket.IO se ejecuta en la capa service y solo después del COMMIT.
+  for (const notificacion of resultado.notificaciones || []) {
+    emitirNotificacionCliente(resultado.cliente_id, notificacion);
+  }
+
+  return resultado.reserva;
 };
 
 module.exports = {

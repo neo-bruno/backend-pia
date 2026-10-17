@@ -20,6 +20,37 @@ const getProfessionals = async (req, res) => {
   }
 };
 
+// =====================================================
+// OBTENER RESEÑAS DE UN PROFESIONAL
+// =====================================================
+async function getResenasProfesional(req, res) {
+  try {
+    const profesionalId = Number(req.params.profesionalId);
+
+    if (!Number.isInteger(profesionalId) || profesionalId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        message: "El ID del profesional no es válido",
+      });
+    }
+
+    const data = await service.getResenasProfesional(profesionalId);
+
+    return res.status(200).json({
+      ok: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Error al obtener reseñas del profesional:", error);
+
+    return res.status(500).json({
+      ok: false,
+      message: "Error al obtener las reseñas",
+      error: error.message,
+    });
+  }
+}
+
 async function getVerificationCode(req, res) {
   try {
     const { codigo } = req.params;
@@ -143,4 +174,5 @@ module.exports = {
   getVerificationCode,
   getProfessionalBySlug,
   saveProfessional,
+  getResenasProfesional,
 };
