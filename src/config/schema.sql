@@ -31,6 +31,7 @@ CREATE TYPE tipo_servicio_archivo_enum AS ENUM ('FOTO', 'VIDEO');
 CREATE TYPE objetivo_calificacion_enum AS ENUM ('PROFESIONAL', 'SERVICIO', 'NEGOCIO', 'PIA');
 CREATE TYPE estado_evaluacion_enum AS ENUM ('HABILITADO', 'DESHABILITADO');
 CREATE TYPE tipo_descuento_enum AS ENUM ('CLIENTE', 'PUBLICO');
+CREATE TYPE estado_negocio_enum AS ENUM ('HABILITADO', 'DESHABILITADO');
 
 CREATE TABLE rol (
     id SERIAL PRIMARY KEY,
@@ -73,10 +74,10 @@ CREATE TABLE negocio (
     longitud NUMERIC(10,7),
     logo TEXT,
     portada TEXT,
-    color_1 VARCHAR(20),
-    color_2 VARCHAR(20),
-    color_3 VARCHAR(20),
-    estado VARCHAR(30) NOT NULL,
+    eslogan VARCHAR(250),
+    informacion TEXT,
+    recomendacion VARCHAR(250),
+    estado estado_negocio_enum NOT NULL DEFAULT 'HABILITADO',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -462,6 +463,11 @@ CREATE TABLE negocio_archivo (
     id SERIAL PRIMARY KEY,
     negocio_id INTEGER NOT NULL REFERENCES negocio(id),
     archivo_id INTEGER NOT NULL REFERENCES archivo(id),
+
+    tipo tipo_servicio_archivo_enum NOT NULL DEFAULT 'FOTO',
+    orden INTEGER NOT NULL DEFAULT 1,
+    principal BOOLEAN NOT NULL DEFAULT FALSE,
+		
     UNIQUE (negocio_id, archivo_id)
 );
 
@@ -724,6 +730,22 @@ CREATE TABLE bloqueo (
         CHECK (estado IN ('ACTIVO', 'CANCELADO'))
 );
 
+CREATE TABLE especialidad (
+    id SERIAL PRIMARY KEY,
+
+    negocio_id INTEGER NOT NULL REFERENCES negocio(id) ON DELETE CASCADE,
+
+    nombre VARCHAR(100) NOT NULL,
+    icono VARCHAR(100),
+    estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_especialidad_negocio_nombre
+        UNIQUE (negocio_id, nombre)
+);
+
 -- ÍNDICES
 CREATE INDEX idx_usuario_persona ON usuario(persona_id);
 CREATE INDEX idx_usuario_rol ON usuario(rol_id);
@@ -768,6 +790,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_evaluacion_habilitada_por_objetivo ON evalu
 CREATE INDEX idx_notificacion_cliente_reserva_evaluacion ON notificacion (cliente_id, reserva_id, evaluacion_id);
 
 CREATE UNIQUE INDEX uq_descuento_servicio_cliente_activo ON descuento_servicio_cliente (descuento_servicio_id, cliente_id) WHERE estado_aplicado = 'ACTIVO';
+
+CREATE INDEX idx_especialidad_busqueda ON especialidad (negocio_id, estado);
+CREATE INDEX idx_especialidad_nombre ON especialidad (LOWER(nombre));
 
 COMMIT;
 	

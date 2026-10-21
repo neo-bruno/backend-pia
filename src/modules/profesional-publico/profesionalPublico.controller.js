@@ -110,8 +110,6 @@ async function getProfessionalBySlug(req, res) {
 }
 
 async function saveProfessional(req, res) {
-  console.log("SAVE PROFESIONAL:", req.body);
-
   try {
     let profesional;
     let membresia;
@@ -122,9 +120,6 @@ async function saveProfessional(req, res) {
     try {
       profesional = JSON.parse(req.body.profesional);
     } catch (error) {
-      console.error("ERROR PARSE PROFESIONAL:", error);
-      console.error("req.body.profesional:", req.body.profesional);
-
       return res.status(400).json({
         ok: false,
         mensaje: "Los datos del profesional no tienen un formato válido",
@@ -137,9 +132,6 @@ async function saveProfessional(req, res) {
     try {
       membresia = JSON.parse(req.body.membresia);
     } catch (error) {
-      console.error("ERROR PARSE MEMBRESÍA:", error);
-      console.error("req.body.membresia:", req.body.membresia);
-
       return res.status(400).json({
         ok: false,
         mensaje: "Los datos de la membresía no tienen un formato válido",

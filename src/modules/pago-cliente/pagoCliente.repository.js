@@ -222,9 +222,9 @@ async function getPagosByClienteId(clienteId) {
       n.telefono AS negocio_telefono,
       n.logo AS negocio_logo,
       n.portada AS negocio_portada,
-      n.color_1 AS negocio_color_1,
-      n.color_2 AS negocio_color_2,
-      n.color_3 AS negocio_color_3,
+      n.eslogan AS negocio_eslogan,
+      n.informacion AS negocio_informacion,
+      n.recomendacion AS negocio_recomendacion,
 
       -- =====================================================
       -- COMPROBANTE

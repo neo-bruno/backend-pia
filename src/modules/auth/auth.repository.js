@@ -1,7 +1,7 @@
 const pool = require("../../database/pool");
 
 const buscarUsuarioPorTelefono = async (telefono) => {
-  const query = `
+	const query = `
     SELECT
       u.id AS usuario_id,
       u.persona_id,
@@ -46,11 +46,44 @@ const buscarUsuarioPorTelefono = async (telefono) => {
     LIMIT 1
   `;
 
-  const { rows } = await pool.query(query, [telefono]);
+	const { rows } = await pool.query(query, [telefono]);
 
-  return rows[0] || null;
+	return rows[0] || null;
+};
+
+// Obtener el hash de contraseña del usuario autenticado
+const buscarPasswordPorUsuarioId = async (usuarioId) => {
+	const query = `
+    SELECT id, password, estado
+    FROM usuario
+    WHERE id = $1
+    LIMIT 1
+  `;
+
+	const { rows } = await pool.query(query, [usuarioId]);
+
+	return rows[0] || null;
+};
+
+// Guardar el nuevo hash
+const actualizarPassword = async (usuarioId, passwordHash) => {
+	const query = `
+    UPDATE usuario
+    SET
+      password = $1,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $2
+      AND estado = 'HABILITADO'
+    RETURNING id
+  `;
+
+	const { rows } = await pool.query(query, [passwordHash, usuarioId]);
+
+	return rows[0] || null;
 };
 
 module.exports = {
-  buscarUsuarioPorTelefono,
+	buscarUsuarioPorTelefono,
+	buscarPasswordPorUsuarioId,
+	actualizarPassword,
 };

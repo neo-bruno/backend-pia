@@ -25,9 +25,9 @@ async function getNegocioByCodigo(codigo) {
       longitud,
       logo,
       portada,
-      color_1,
-      color_2,
-      color_3,
+      eslogan,
+      informacion,
+      recomendacion,
       estado
     FROM negocio
     WHERE codigo = $1
