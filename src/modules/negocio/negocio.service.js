@@ -322,7 +322,18 @@ async function saveBusinessProfession(data, file) {
   }
 }
 
+
+const getBusinessBySlug = async (slug) => {
+  if (!slug || typeof slug !== "string" || !slug.trim()) {
+    throw new Error("El slug del negocio es obligatorio");
+  }
+
+  return repository.getBusinessBySlug(slug.trim());
+};
+
+
 module.exports = {
   saveBusinessProfession,
   getBusiness,
+  getBusinessBySlug,
 };

@@ -43,9 +43,11 @@ const descuentoClienteRoutes = require("../modules/descuento-cliente");
 const perfilRoutes = require("../modules/perfil");
 const historialRoutes = require("../modules/historial");
 const negocioAdminRoutes = require("../modules/negocio-admin");
-const negocioArchivoRoutes = require('../modules/negocio-archivo')
-const especialidadRoutes = require('../modules/especialidad')
-const membresiaRoutes = require('../modules/membresia')
+const negocioArchivoRoutes = require("../modules/negocio-archivo");
+const especialidadRoutes = require("../modules/especialidad");
+const membresiaRoutes = require("../modules/membresia");
+const piaPublicoRoutes = require("../modules/pia-publico");
+const reprogramacionRoutes = require("../modules/reprogramacion");
 
 const router = express.Router();
 
@@ -93,8 +95,10 @@ router.use("/descuento-cliente", descuentoClienteRoutes);
 router.use("/perfil", perfilRoutes);
 router.use("/historial", historialRoutes);
 router.use("/negocio-admin", negocioAdminRoutes);
-router.use('/negocio-archivo', negocioArchivoRoutes)
-router.use('/especialidad', especialidadRoutes)
+router.use("/negocio-archivo", negocioArchivoRoutes);
+router.use("/especialidad", especialidadRoutes);
 router.use("/membresia", membresiaRoutes);
+router.use("/pia-publico", piaPublicoRoutes);
+router.use("/reprogramacion", reprogramacionRoutes);
 
 module.exports = router;

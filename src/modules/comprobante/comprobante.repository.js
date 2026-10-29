@@ -3,8 +3,9 @@ const pool = require("../../database/pool");
 /**
  * Obtiene todos los comprobantes pendientes.
  */
+
 async function getPendingVouchers() {
-  const result = await pool.query(`
+	const result = await pool.query(`
     SELECT
       c.id AS comprobante_id,
       c.estado AS estado,
@@ -30,6 +31,7 @@ async function getPendingVouchers() {
 
       pn.id AS profesional_negocio_id,
       pn.estado AS profesional_negocio_estado,
+      pn.acceso AS profesional_negocio_acceso,
 
       n.id AS negocio_id,
       n.codigo AS negocio_codigo,
@@ -68,18 +70,20 @@ async function getPendingVouchers() {
     INNER JOIN archivo a
       ON a.id = c.archivo_id
 
+    
+
     ORDER BY c.id DESC
   `);
 
-  return result.rows;
+	return result.rows;
 }
 
 /**
  * Obtiene un comprobante específico con toda su información.
  */
 async function getVoucherById(comprobanteId) {
-  const result = await pool.query(
-    `
+	const result = await pool.query(
+		`
     SELECT
       c.id AS comprobante_id,
       c.estado AS comprobante_estado,
@@ -147,17 +151,17 @@ async function getVoucherById(comprobanteId) {
 
     LIMIT 1
     `,
-    [comprobanteId],
-  );
+		[comprobanteId],
+	);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 /**
  * Obtiene la gerencia activa.
  */
 async function getActiveManagement(client) {
-  const result = await client.query(`
+	const result = await client.query(`
     SELECT id
     FROM gerencia
     WHERE estado = 'ACTIVO'
@@ -165,7 +169,7 @@ async function getActiveManagement(client) {
     LIMIT 1
   `);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 /**
@@ -173,8 +177,8 @@ async function getActiveManagement(client) {
  * relacionadas con la membresía.
  */
 async function acceptVoucher(client, comprobante) {
-  await client.query(
-    `
+	await client.query(
+		`
     UPDATE comprobante
     SET
       estado = 'ACEPTADO',
@@ -183,56 +187,56 @@ async function acceptVoucher(client, comprobante) {
       fecha_validacion = CURRENT_TIMESTAMP
     WHERE id = $3
     `,
-    [
-      comprobante.observacion || null,
-      comprobante.gerenciaId,
-      comprobante.comprobanteId,
-    ],
-  );
+		[
+			comprobante.observacion || null,
+			comprobante.gerenciaId,
+			comprobante.comprobanteId,
+		],
+	);
 
-  await client.query(
-    `
+	await client.query(
+		`
     UPDATE membresia
     SET estado_pagado = TRUE
     WHERE id = $1
     `,
-    [comprobante.membresiaId],
-  );
+		[comprobante.membresiaId],
+	);
 
-  await client.query(
-    `
+	await client.query(
+		`
     UPDATE profesional_negocio
     SET estado = 'HABILITADO'
     WHERE id = $1
     `,
-    [comprobante.profesionalNegocioId],
-  );
+		[comprobante.profesionalNegocioId],
+	);
 
-  await client.query(
-    `
+	await client.query(
+		`
     UPDATE profesional
     SET estado_funciones = 'HABILITADO'
     WHERE id = $1
     `,
-    [comprobante.profesionalId],
-  );
+		[comprobante.profesionalId],
+	);
 
-  await client.query(
-    `
+	await client.query(
+		`
     UPDATE negocio
     SET estado = 'HABILITADO'
     WHERE id = $1
     `,
-    [comprobante.negocioId],
-  );
+		[comprobante.negocioId],
+	);
 }
 
 /**
  * Rechaza un comprobante.
  */
 async function rejectVoucher(client, comprobante) {
-  await client.query(
-    `
+	await client.query(
+		`
     UPDATE comprobante
     SET
       estado = 'RECHAZADO',
@@ -241,18 +245,18 @@ async function rejectVoucher(client, comprobante) {
       fecha_validacion = CURRENT_TIMESTAMP
     WHERE id = $3
     `,
-    [
-      comprobante.observacion,
-      comprobante.gerenciaId,
-      comprobante.comprobanteId,
-    ],
-  );
+		[
+			comprobante.observacion,
+			comprobante.gerenciaId,
+			comprobante.comprobanteId,
+		],
+	);
 }
 
 module.exports = {
-  getPendingVouchers,
-  getVoucherById,
-  getActiveManagement,
-  acceptVoucher,
-  rejectVoucher,
+	getPendingVouchers,
+	getVoucherById,
+	getActiveManagement,
+	acceptVoucher,
+	rejectVoucher,
 };

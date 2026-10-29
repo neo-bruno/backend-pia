@@ -981,10 +981,10 @@ const getProfessionals = async () => {
 // =====================================================
 // PROFESIONAL POR SLUG
 // =====================================================
+
 async function getProfessionalBySlug(slug) {
   const query = `
     SELECT
-
       -- =====================================================
       -- PROFESIONAL
       -- =====================================================
@@ -1016,35 +1016,51 @@ async function getProfessionalBySlug(slug) {
       )::INTEGER AS anios_experiencia,
 
       -- =====================================================
-      -- CALIFICACIÓN - ATENCIÓN
+      -- CALIFICACIÓN Y CANTIDAD DE RESEÑAS
+      -- Subconsultas independientes para evitar duplicados
       -- =====================================================
 
       COALESCE(
-        ROUND(
-          AVG(c.puntaje)
-          FILTER (
-            WHERE tc.codigo = 'ATENCION'
-              AND c.estado = 'ACTIVA'
-              AND tc.estado = 'ACTIVO'
-          ),
-          1
+        (
+          SELECT ROUND(AVG(c.puntaje), 1)
+          FROM calificacion c
+          INNER JOIN evaluacion e
+            ON e.id = c.evaluacion_id
+          INNER JOIN tipo_calificacion tc
+            ON tc.id = e.tipo_calificacion_id
+          WHERE c.profesional_id = p.id
+            AND tc.codigo = 'ATENCION'
+            AND tc.objetivo = 'PROFESIONAL'
+            AND tc.estado = 'ACTIVO'
+            AND e.estado = 'HABILITADO'
+            AND c.estado = 'ACTIVA'
         ),
         0
       ) AS calificacion,
 
-      COUNT(c.id)
-        FILTER (
-          WHERE tc.codigo = 'ATENCION'
-            AND c.estado = 'ACTIVA'
-            AND tc.estado = 'ACTIVO'
-        ) AS cantidad_calificaciones,
+      (
+        SELECT COUNT(*)
+        FROM calificacion c
+        INNER JOIN evaluacion e
+          ON e.id = c.evaluacion_id
+        INNER JOIN tipo_calificacion tc
+          ON tc.id = e.tipo_calificacion_id
+        WHERE c.profesional_id = p.id
+          AND tc.codigo = 'ATENCION'
+          AND tc.objetivo = 'PROFESIONAL'
+          AND tc.estado = 'ACTIVO'
+          AND e.estado = 'HABILITADO'
+          AND c.estado = 'ACTIVA'
+      ) AS cantidad_calificaciones,
 
       -- =====================================================
       -- CLIENTES ATENDIDOS
       -- =====================================================
 
-      COUNT(
-        DISTINCT h.cliente_id
+      (
+        SELECT COUNT(DISTINCT h.cliente_id)
+        FROM historial h
+        WHERE h.profesional_id = p.id
       ) AS clientes_atendidos,
 
       -- =====================================================
@@ -1052,17 +1068,21 @@ async function getProfessionalBySlug(slug) {
       -- =====================================================
 
       COALESCE(
-        json_agg(
-          DISTINCT jsonb_build_object(
-            'id', tp.id,
-            'nombre', tp.nombre,
-            'descripcion', tp.descripcion
+        (
+          SELECT json_agg(
+            jsonb_build_object(
+              'id', tp.id,
+              'nombre', tp.nombre,
+              'descripcion', tp.descripcion
+            )
+            ORDER BY tp.id
           )
-        )
-        FILTER (
-          WHERE tp.id IS NOT NULL
+          FROM profesional_tipo_profesional ptp
+          INNER JOIN tipo_profesional tp
+            ON tp.id = ptp.tipo_profesional_id
+          WHERE ptp.profesional_id = p.id
         ),
-        '[]'
+        '[]'::json
       ) AS tipos,
 
       -- =====================================================
@@ -1089,17 +1109,12 @@ async function getProfessionalBySlug(slug) {
         (
           SELECT json_agg(
             jsonb_build_object(
-
               'id', s.id,
               'nombre', s.nombre,
               'descripcion', s.descripcion,
               'duracion', s.duracion,
               'precio', s.precio,
               'estado', s.estado,
-
-              -- -------------------------------------------
-              -- ARCHIVOS DEL SERVICIO
-              -- -------------------------------------------
 
               'archivos',
               COALESCE(
@@ -1122,9 +1137,8 @@ async function getProfessionalBySlug(slug) {
                     ON a.id = sa.archivo_id
                   WHERE sa.servicio_id = s.id
                 ),
-                '[]'
+                '[]'::json
               )
-
             )
             ORDER BY s.id DESC
           )
@@ -1132,20 +1146,17 @@ async function getProfessionalBySlug(slug) {
           WHERE s.profesional_id = p.id
             AND s.estado = 'HABILITADO'
         ),
-        '[]'
+        '[]'::json
       ) AS servicios,
 
       -- =====================================================
       -- GALERÍA GENERAL DEL PROFESIONAL
       -- =====================================================
-      -- Junta todas las fotos y videos de sus servicios
-      -- para poder mostrarlos como una galería.
 
       COALESCE(
         (
           SELECT json_agg(
             jsonb_build_object(
-
               'id', a.id,
               'url', a.url,
               'nombre', a.nombre,
@@ -1153,29 +1164,23 @@ async function getProfessionalBySlug(slug) {
               'mime_type', a.mime_type,
               'orden', sa.orden,
               'principal', sa.principal,
-
               'servicio_id', s.id,
               'servicio_nombre', s.nombre
-
             )
             ORDER BY
               s.id DESC,
               sa.orden ASC,
               a.id ASC
           )
-
           FROM servicio s
-
           INNER JOIN servicio_archivo sa
             ON sa.servicio_id = s.id
-
           INNER JOIN archivo a
             ON a.id = sa.archivo_id
-
           WHERE s.profesional_id = p.id
             AND s.estado = 'HABILITADO'
         ),
-        '[]'
+        '[]'::json
       ) AS galeria
 
     FROM profesional p
@@ -1184,17 +1189,7 @@ async function getProfessionalBySlug(slug) {
       ON per.id = p.persona_id
 
     -- =====================================================
-    -- TIPOS PROFESIONALES
-    -- =====================================================
-
-    LEFT JOIN profesional_tipo_profesional ptp
-      ON ptp.profesional_id = p.id
-
-    LEFT JOIN tipo_profesional tp
-      ON tp.id = ptp.tipo_profesional_id
-
-    -- =====================================================
-    -- NEGOCIO
+    -- NEGOCIO HABILITADO
     -- =====================================================
 
     LEFT JOIN profesional_negocio pn
@@ -1203,35 +1198,10 @@ async function getProfessionalBySlug(slug) {
 
     LEFT JOIN negocio n
       ON n.id = pn.negocio_id
-    
-    -- =====================================================
-    -- CALIFICACIONES
-    -- =====================================================
-
-    LEFT JOIN calificacion c
-      ON c.profesional_id = p.id
-
-    LEFT JOIN evaluacion e
-      ON e.id = c.evaluacion_id
-
-    LEFT JOIN tipo_calificacion tc
-      ON tc.id = e.tipo_calificacion_id
-
-    -- =====================================================
-    -- HISTORIAL
-    -- =====================================================
-
-    LEFT JOIN historial h
-      ON h.profesional_id = p.id
 
     WHERE p.slug = $1
       AND p.estado = 'ACTIVO'
       AND p.estado_funciones = 'HABILITADO'
-
-    GROUP BY
-      p.id,
-      per.id,
-      n.id
 
     LIMIT 1;
   `;
@@ -1253,29 +1223,34 @@ async function getProfessionalBySlug(slug) {
       id: row.id,
       persona_id: row.persona_id,
       nombre: row.nombre,
-
       slug: row.slug,
 
       foto: row.foto,
       portada: row.portada,
 
       fecha_trabajo: row.fecha_trabajo,
-
       descripcion: row.descripcion,
       lema: row.lema,
-
       pago_qr: row.pago_qr,
 
       estado: row.estado,
       estado_funciones: row.estado_funciones,
 
-      anios_experiencia: Number(row.anios_experiencia || 0),
+      anios_experiencia: Number(
+        row.anios_experiencia || 0
+      ),
 
-      calificacion: Number(row.calificacion || 0),
+      calificacion: Number(
+        row.calificacion || 0
+      ),
 
-      cantidad_calificaciones: Number(row.cantidad_calificaciones || 0),
+      cantidad_calificaciones: Number(
+        row.cantidad_calificaciones || 0
+      ),
 
-      clientes_atendidos: Number(row.clientes_atendidos || 0),
+      clientes_atendidos: Number(
+        row.clientes_atendidos || 0
+      ),
 
       tipos: row.tipos || [],
     },
@@ -1287,25 +1262,15 @@ async function getProfessionalBySlug(slug) {
     negocio: row.negocio_id
       ? {
           id: row.negocio_id,
-
           nombre: row.negocio_nombre,
-
           slug: row.negocio_slug,
-
           telefono: row.negocio_telefono,
-
           departamento: row.departamento,
-
           municipio: row.municipio,
-
           zona: row.zona,
-
           direccion: row.direccion,
-
           latitud: row.latitud,
-
           longitud: row.longitud,
-
           logo: row.negocio_logo,
         }
       : null,
@@ -1323,6 +1288,7 @@ async function getProfessionalBySlug(slug) {
     galeria: row.galeria || [],
   };
 }
+
 
 // =====================================================
 // RESEÑAS DE UN PROFESIONAL

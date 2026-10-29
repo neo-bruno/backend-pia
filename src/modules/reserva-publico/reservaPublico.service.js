@@ -648,27 +648,34 @@ async function getUpcomingReservations({ token }) {
 }
 
 async function getReservationHistory({ token }) {
-	const reservas = await getReservations({ token });
+	const client = await pool.connect();
 
-	const ahora = new Date();
-
-	return reservas.filter((reserva) => {
-		const estado = String(reserva.estado || "").toUpperCase();
-
-		if (["COMPLETADA", "CANCELADA", "NO_ASISTIO"].includes(estado)) {
-			return true;
-		}
-
-		if (["PENDIENTE", "CONFIRMADA"].includes(estado)) {
-			const fechaHora = new Date(
-				`${String(reserva.fecha).slice(0, 10)}T${reserva.hora_inicio}`,
+	try {
+		if (!token) {
+			throw crearError(
+				"El cliente no está autenticado.",
+				401,
+				"CLIENTE_NO_AUTENTICADO",
 			);
-
-			return fechaHora < ahora;
 		}
 
-		return false;
-	});
+		const cliente = await repository.getClienteByToken(client, token);
+
+		if (!cliente) {
+			throw crearError(
+				"El token del cliente no es válido.",
+				401,
+				"TOKEN_INVALIDO",
+			);
+		}
+
+		return await repository.getReservationHistoryByCliente(
+			client,
+			Number(cliente.id),
+		);
+	} finally {
+		client.release();
+	}
 }
 
 // =====================================================
@@ -717,6 +724,127 @@ async function getReservationById({ token, reservaId }) {
 	}
 }
 
+async function cancelReservation({ token, reservaId, motivo }) {
+	const client = await pool.connect();
+	let transaccionIniciada = false;
+
+	try {
+		if (!token) {
+			throw crearError(
+				"El cliente no está autenticado.",
+				401,
+				"CLIENTE_NO_AUTENTICADO",
+			);
+		}
+
+		await client.query("BEGIN");
+		transaccionIniciada = true;
+
+		const cliente = await repository.getClienteByToken(client, token);
+
+		if (!cliente) {
+			throw crearError(
+				"El token del cliente no es válido.",
+				401,
+				"TOKEN_INVALIDO",
+			);
+		}
+
+		const reserva = await repository.getReservaParaCancelar(
+			client,
+			Number(reservaId),
+			Number(cliente.id),
+		);
+
+		if (!reserva) {
+			throw crearError(
+				"La reserva no existe o no pertenece al cliente.",
+				404,
+				"RESERVA_NO_ENCONTRADA",
+			);
+		}
+
+		if (!["PENDIENTE", "CONFIRMADA"].includes(reserva.estado)) {
+			throw crearError(
+				"Esta reserva no se puede cancelar porque su estado actual es " +
+					reserva.estado +
+					".",
+				409,
+				"ESTADO_NO_CANCELABLE",
+			);
+		}
+
+		// Todas las condiciones asociadas deben permitir cancelar.
+		const condiciones = reserva.condiciones || [];
+
+		const condicionNoPermitida = condiciones.find(
+			(c) => c.permite_cancelar !== true,
+		);
+
+		if (condicionNoPermitida) {
+			throw crearError(
+				`La condición "${condicionNoPermitida.nombre}" no permite cancelar esta reserva.`,
+				409,
+				"CANCELACION_NO_PERMITIDA",
+			);
+		}
+
+		const limiteVencido = condiciones.find((c) => c.limite_vencido === true);
+
+		if (limiteVencido) {
+			throw crearError(
+				`Se venció el plazo para cancelar según la condición "${limiteVencido.nombre}".`,
+				409,
+				"LIMITE_CANCELACION_VENCIDO",
+			);
+		}
+
+		// Primero liberar las asignaciones dentro de la transacción.
+		// Si cualquier paso posterior falla, el ROLLBACK las restaura.
+		await repository.liberarSlotsReserva(client, reserva.id);
+
+		const reservaActualizada = await repository.actualizarEstadoReserva(
+			client,
+			reserva.id,
+			"CANCELADA",
+		);
+
+		if (!reservaActualizada) {
+			throw crearError(
+				"No se pudo actualizar el estado de la reserva.",
+				500,
+				"ERROR_ACTUALIZANDO_RESERVA",
+			);
+		}
+
+		await client.query("COMMIT");
+		transaccionIniciada = false;
+
+		return {
+			reserva_id: Number(reservaActualizada.id),
+			numero: Number(reservaActualizada.numero),
+			estado: reservaActualizada.estado,
+			motivo: motivo || null,
+			mensaje: "La reserva se canceló correctamente.",
+		};
+	} catch (error) {
+		if (transaccionIniciada) {
+			try {
+				await client.query("ROLLBACK");
+			} catch (rollbackError) {
+				console.error(
+					"Error ejecutando ROLLBACK de cancelación:",
+					rollbackError,
+				);
+			}
+		}
+
+		throw error;
+	} finally {
+		client.release();
+	}
+}
+
 module.exports = {
 	confirmReservation,
 	getReservations,
@@ -724,4 +852,5 @@ module.exports = {
 
 	getUpcomingReservations,
 	getReservationHistory,
+	cancelReservation,
 };

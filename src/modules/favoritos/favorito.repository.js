@@ -271,6 +271,9 @@ async function obtenerFavoritosCliente(client, clienteId) {
       n.logo AS negocio_logo,
       n.portada AS negocio_portada,
 
+      COALESCE(calificaciones.rating, 0)::NUMERIC AS negocio_rating,
+      COALESCE(calificaciones.resenas, 0)::INTEGER AS negocio_resenas,
+
       NULL::INTEGER AS profesional_id,
       NULL::VARCHAR AS profesional_slug,
       NULL::VARCHAR AS profesional_nombre,
@@ -278,17 +281,47 @@ async function obtenerFavoritosCliente(client, clienteId) {
       NULL::TEXT AS profesional_portada,
       NULL::TEXT AS profesional_descripcion,
       NULL::VARCHAR AS profesional_lema,
+      NULL::NUMERIC AS profesional_rating,
+      NULL::INTEGER AS profesional_resenas,
+      NULL::NUMERIC AS profesional_precio_minimo,
 
       NULL::INTEGER AS servicio_id,
       NULL::VARCHAR AS servicio_nombre,
       NULL::TEXT AS servicio_descripcion,
       NULL::INTEGER AS servicio_duracion,
       NULL::NUMERIC AS servicio_precio,
-      NULL::VARCHAR AS servicio_imagen
+      NULL::VARCHAR AS servicio_imagen,
+      NULL::NUMERIC AS servicio_rating,
+      NULL::INTEGER AS servicio_resenas
 
     FROM favorito f
+
     INNER JOIN negocio n
       ON n.id = f.negocio_id
+
+    LEFT JOIN LATERAL (
+      SELECT
+        ROUND(AVG(c.puntaje), 1) AS rating,
+        COUNT(*)::INTEGER AS resenas
+      FROM calificacion c
+
+      INNER JOIN evaluacion e
+        ON e.id = c.evaluacion_id
+
+      INNER JOIN tipo_calificacion tc
+        ON tc.id = e.tipo_calificacion_id
+
+      WHERE c.estado = 'ACTIVA'
+        AND tc.objetivo = 'NEGOCIO'
+
+        AND EXISTS (
+          SELECT 1
+          FROM historial h
+          WHERE h.reserva_id = c.reserva_id
+            AND h.negocio_id = n.id
+        )
+    ) calificaciones ON TRUE
+
     WHERE f.cliente_id = $1
       AND f.negocio_id IS NOT NULL
 
@@ -314,6 +347,9 @@ async function obtenerFavoritosCliente(client, clienteId) {
       NULL::TEXT AS negocio_logo,
       NULL::TEXT AS negocio_portada,
 
+      NULL::NUMERIC AS negocio_rating,
+      NULL::INTEGER AS negocio_resenas,
+
       p.id AS profesional_id,
       p.slug AS profesional_slug,
       per.nombre AS profesional_nombre,
@@ -322,18 +358,55 @@ async function obtenerFavoritosCliente(client, clienteId) {
       p.descripcion AS profesional_descripcion,
       p.lema AS profesional_lema,
 
+      COALESCE(cal_profesional.rating, 0)::NUMERIC
+        AS profesional_rating,
+
+      COALESCE(cal_profesional.resenas, 0)::INTEGER
+        AS profesional_resenas,
+
+      precio_minimo.precio AS profesional_precio_minimo,
+
       NULL::INTEGER AS servicio_id,
       NULL::VARCHAR AS servicio_nombre,
       NULL::TEXT AS servicio_descripcion,
       NULL::INTEGER AS servicio_duracion,
       NULL::NUMERIC AS servicio_precio,
-      NULL::VARCHAR AS servicio_imagen
+      NULL::VARCHAR AS servicio_imagen,
+      NULL::NUMERIC AS servicio_rating,
+      NULL::INTEGER AS servicio_resenas
 
     FROM favorito f
+
     INNER JOIN profesional p
       ON p.id = f.profesional_id
+
     INNER JOIN persona per
       ON per.id = p.persona_id
+
+    LEFT JOIN LATERAL (
+      SELECT
+        ROUND(AVG(c.puntaje), 1) AS rating,
+        COUNT(*)::INTEGER AS resenas
+      FROM calificacion c
+
+      INNER JOIN evaluacion e
+        ON e.id = c.evaluacion_id
+
+      INNER JOIN tipo_calificacion tc
+        ON tc.id = e.tipo_calificacion_id
+
+      WHERE c.estado = 'ACTIVA'
+        AND tc.objetivo = 'PROFESIONAL'
+        AND c.profesional_id = p.id
+    ) cal_profesional ON TRUE
+
+    LEFT JOIN LATERAL (
+      SELECT
+        MIN(s.precio) AS precio
+      FROM servicio s
+      WHERE s.profesional_id = p.id
+    ) precio_minimo ON TRUE
+
     WHERE f.cliente_id = $1
       AND f.profesional_id IS NOT NULL
 
@@ -359,6 +432,9 @@ async function obtenerFavoritosCliente(client, clienteId) {
       NULL::TEXT AS negocio_logo,
       NULL::TEXT AS negocio_portada,
 
+      NULL::NUMERIC AS negocio_rating,
+      NULL::INTEGER AS negocio_resenas,
+
       p.id AS profesional_id,
       p.slug AS profesional_slug,
       per.nombre AS profesional_nombre,
@@ -367,27 +443,59 @@ async function obtenerFavoritosCliente(client, clienteId) {
       p.descripcion AS profesional_descripcion,
       p.lema AS profesional_lema,
 
+      NULL::NUMERIC AS profesional_rating,
+      NULL::INTEGER AS profesional_resenas,
+      NULL::NUMERIC AS profesional_precio_minimo,
+
       s.id AS servicio_id,
       s.nombre AS servicio_nombre,
       s.descripcion AS servicio_descripcion,
       s.duracion AS servicio_duracion,
       s.precio AS servicio_precio,
+      archivo.url AS servicio_imagen,
 
-      archivo.url AS servicio_imagen
+      COALESCE(cal_servicio.rating, 0)::NUMERIC
+        AS servicio_rating,
+
+      COALESCE(cal_servicio.resenas, 0)::INTEGER
+        AS servicio_resenas
 
     FROM favorito f
+
     INNER JOIN servicio s
       ON s.id = f.servicio_id
+
     INNER JOIN profesional p
       ON p.id = s.profesional_id
+
     INNER JOIN persona per
       ON per.id = p.persona_id
+
     LEFT JOIN servicio_archivo sa
       ON sa.servicio_id = s.id
       AND sa.principal = TRUE
       AND sa.tipo = 'FOTO'
+
     LEFT JOIN archivo
       ON archivo.id = sa.archivo_id
+
+    LEFT JOIN LATERAL (
+      SELECT
+        ROUND(AVG(c.puntaje), 1) AS rating,
+        COUNT(*)::INTEGER AS resenas
+      FROM calificacion c
+
+      INNER JOIN evaluacion e
+        ON e.id = c.evaluacion_id
+
+      INNER JOIN tipo_calificacion tc
+        ON tc.id = e.tipo_calificacion_id
+
+      WHERE c.estado = 'ACTIVA'
+        AND tc.objetivo = 'SERVICIO'
+        AND c.servicio_id = s.id
+    ) cal_servicio ON TRUE
+
     WHERE f.cliente_id = $1
       AND f.servicio_id IS NOT NULL
 

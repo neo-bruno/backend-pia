@@ -1,8 +1,7 @@
 const pool = require("../../database/pool");
 
 async function getServiceById(servicioId) {
-  
-  const query = `
+	const query = `
       SELECT
 
         -- ==================================================
@@ -14,9 +13,58 @@ async function getServiceById(servicioId) {
         s.descripcion,
         s.duracion,
         s.precio,
+        -- ==================================================
+        -- DESCUENTO PÚBLICO VIGENTE
+        -- ==================================================
+
+        (descuento_publico.descuento_id IS NOT NULL)
+          AS tiene_descuento,
+
+        descuento_publico.descuento_id,
+        descuento_publico.descuento_titulo,
+        descuento_publico.descuento_monto,
+        descuento_publico.descuento_porcentaje,
+        descuento_publico.precio_final,
+        descuento_publico.monto_descuento_calculado,
         s.estado,
         s.created_at,
         s.updated_at,
+
+        -- ==================================================
+        -- CALIFICACIÓN DEL SERVICIO
+        -- ==================================================
+
+        COALESCE(
+          (
+            SELECT ROUND(AVG(c.puntaje), 1)
+            FROM calificacion c
+            INNER JOIN evaluacion e
+              ON e.id = c.evaluacion_id
+            INNER JOIN tipo_calificacion tc
+              ON tc.id = e.tipo_calificacion_id
+            WHERE c.servicio_id = s.id
+              AND tc.estado = 'ACTIVO'
+              AND e.estado = 'HABILITADO'
+              AND c.estado = 'ACTIVA'
+          ),
+          0
+        ) AS servicio_calificacion,
+
+        COALESCE(
+          (
+            SELECT COUNT(c.id)
+            FROM calificacion c
+            INNER JOIN evaluacion e
+              ON e.id = c.evaluacion_id
+            INNER JOIN tipo_calificacion tc
+              ON tc.id = e.tipo_calificacion_id
+            WHERE c.servicio_id = s.id
+              AND tc.estado = 'ACTIVO'
+              AND e.estado = 'HABILITADO'
+              AND c.estado = 'ACTIVA'
+          ),
+          0
+        ) AS servicio_cantidad_calificaciones,
 
         -- ==================================================
         -- ARCHIVOS DEL SERVICIO
@@ -196,6 +244,82 @@ async function getServiceById(servicioId) {
 
       LEFT JOIN negocio n
         ON n.id = pn.negocio_id
+      
+      LEFT JOIN LATERAL (
+        SELECT
+          d.id AS descuento_id,
+          d.titulo AS descuento_titulo,
+          d.monto AS descuento_monto,
+          d.porcentaje AS descuento_porcentaje,
+
+          ROUND(
+            GREATEST(
+              s.precio -
+              CASE
+                WHEN d.monto IS NOT NULL AND d.monto > 0
+                  THEN d.monto
+
+                WHEN d.porcentaje IS NOT NULL
+                  AND d.porcentaje > 0
+                  THEN s.precio * d.porcentaje / 100.0
+
+                ELSE 0
+              END,
+              0
+            ),
+            2
+          ) AS precio_final,
+
+          ROUND(
+            LEAST(
+              s.precio,
+              CASE
+                WHEN d.monto IS NOT NULL AND d.monto > 0
+                  THEN d.monto
+
+                WHEN d.porcentaje IS NOT NULL
+                  AND d.porcentaje > 0
+                  THEN s.precio * d.porcentaje / 100.0
+
+                ELSE 0
+              END
+            ),
+            2
+          ) AS monto_descuento_calculado
+
+        FROM descuento_servicio ds
+
+        INNER JOIN descuento d
+          ON d.id = ds.descuento_id
+
+        WHERE ds.servicio_id = s.id
+          AND ds.tipo_descuento = 'PUBLICO'
+          AND ds.estado = 'ACTIVO'
+          AND d.estado = 'ACTIVO'
+
+          AND (d.negocio_id IS NULL OR d.negocio_id = n.id)
+          AND (d.profesional_id IS NULL OR d.profesional_id = p.id)
+
+          AND (d.fecha_inicio IS NULL OR d.fecha_inicio <= CURRENT_DATE)
+          AND (d.fecha_fin IS NULL OR d.fecha_fin >= CURRENT_DATE)
+
+        ORDER BY
+          CASE
+            WHEN d.monto IS NOT NULL AND d.monto > 0
+              THEN GREATEST(s.precio - d.monto, 0)
+
+            WHEN d.porcentaje IS NOT NULL AND d.porcentaje > 0
+              THEN GREATEST(
+                s.precio - (s.precio * d.porcentaje / 100.0),
+                0
+              )
+
+            ELSE s.precio
+          END ASC,
+          d.id DESC
+
+        LIMIT 1
+      ) descuento_publico ON TRUE
 
       WHERE s.id = $1
         AND s.estado = 'HABILITADO'
@@ -205,74 +329,86 @@ async function getServiceById(servicioId) {
       LIMIT 1;
   `;
 
+	const result = await pool.query(query, [servicioId]);
 
-  const result = await pool.query(query, [servicioId]);
+	if (!result.rows.length) {
+		return null;
+	}
 
-  if (!result.rows.length) {
-    return null;
-  }
+	const row = result.rows[0];
 
-  const row = result.rows[0];
+	return {
+		servicio: {
+			id: row.id,
+			nombre: row.nombre,
+			descripcion: row.descripcion,
+			duracion: Number(row.duracion),
+			precio: Number(row.precio),
+			tiene_descuento: row.tiene_descuento === true,
+			descuento_id: row.descuento_id != null ? Number(row.descuento_id) : null,
+			descuento_titulo: row.descuento_titulo ?? null,
+			descuento_monto:
+				row.descuento_monto != null ? Number(row.descuento_monto) : null,
+			descuento_porcentaje:
+				row.descuento_porcentaje != null
+					? Number(row.descuento_porcentaje)
+					: null,
+			precio_final:
+				row.precio_final != null
+					? Number(row.precio_final)
+					: Number(row.precio),
+			monto_descuento_calculado: Number(row.monto_descuento_calculado ?? 0),
+			estado: row.estado,
+			created_at: row.created_at,
+			updated_at: row.updated_at,
+			calificacion: Number(row.servicio_calificacion || 0),
+			cantidad_calificaciones: Number(
+				row.servicio_cantidad_calificaciones || 0,
+			),
+			archivos: row.archivos || [],
+			condicion: row.condicion || null,
+		},
 
-  return {
-    servicio: {
-      id: row.id,
-      nombre: row.nombre,
-      descripcion: row.descripcion,
-      duracion: Number(row.duracion),
-      precio: Number(row.precio),
-      estado: row.estado,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
+		profesional: {
+			id: row.profesional_id,
+			persona_id: row.persona_id,
+			nombre: row.profesional_nombre,
+			telefono: row.profesional_telefono,
+			slug: row.profesional_slug,
+			foto: row.profesional_foto,
+			portada: row.profesional_portada,
+			fecha_trabajo: row.profesional_fecha_trabajo,
+			descripcion: row.profesional_descripcion,
+			lema: row.profesional_lema,
+			estado: row.profesional_estado,
+			estado_funciones: row.profesional_estado_funciones,
 
-      archivos: row.archivos || [],
+			anios_experiencia: Number(row.anios_experiencia || 0),
+			calificacion: Number(row.calificacion || 0),
+			cantidad_calificaciones: Number(row.cantidad_calificaciones || 0),
+			tipos: row.tipos || [],
+		},
 
-      condicion: row.condicion || null,
-    },
-
-    profesional: {
-      id: row.profesional_id,
-      persona_id: row.persona_id,
-      nombre: row.profesional_nombre,
-      telefono: row.profesional_telefono,
-      slug: row.profesional_slug,
-      foto: row.profesional_foto,
-      portada: row.profesional_portada,
-      fecha_trabajo: row.profesional_fecha_trabajo,
-      descripcion: row.profesional_descripcion,
-      lema: row.profesional_lema,
-      estado: row.profesional_estado,
-      estado_funciones: row.profesional_estado_funciones,
-
-      anios_experiencia: Number(row.anios_experiencia || 0),
-
-      calificacion: Number(row.calificacion || 0),
-
-      cantidad_calificaciones: Number(row.cantidad_calificaciones || 0),
-
-      tipos: row.tipos || [],
-    },
-
-    negocio: row.negocio_id
-      ? {
-          id: row.negocio_id,
-          nombre: row.negocio_nombre,
-          slug: row.negocio_slug,
-          telefono: row.negocio_telefono,
-          departamento: row.departamento,
-          municipio: row.municipio,
-          zona: row.zona,
-          direccion: row.direccion,
-          latitud: row.latitud,
-          longitud: row.longitud,
-          logo: row.negocio_logo,
-        }
-      : null,
-  };
+		negocio: row.negocio_id
+			? {
+					id: row.negocio_id,
+					nombre: row.negocio_nombre,
+					slug: row.negocio_slug,
+					telefono: row.negocio_telefono,
+					departamento: row.departamento,
+					municipio: row.municipio,
+					zona: row.zona,
+					direccion: row.direccion,
+					latitud: row.latitud,
+					longitud: row.longitud,
+					logo: row.negocio_logo,
+				}
+			: null,
+	};
 }
 
 const getServicesByProfessionalId = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT 
       s.id,
       s.profesional_id,
@@ -332,12 +468,12 @@ const getServicesByProfessionalId = async (client, profesionalId) => {
       s.id ASC
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows;
+	return rows;
 };
 
 module.exports = {
-  getServiceById,
-  getServicesByProfessionalId,
+	getServiceById,
+	getServicesByProfessionalId,
 };
