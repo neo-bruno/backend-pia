@@ -1,58 +1,89 @@
 const repository = require("./evaluacionPublico.repository");
 
 function crearError(mensaje, status = 500, codigo = "ERROR") {
-  const error = new Error(mensaje);
-  error.status = status;
-  error.codigo = codigo;
-  return error;
+	const error = new Error(mensaje);
+	error.status = status;
+	error.codigo = codigo;
+	return error;
 }
 
-async function getEvaluacionParaCliente({ token, id }) {
-  if (!token || typeof token !== "string") {
-    throw crearError(
-      "Debes iniciar sesión como cliente.",
-      401,
-      "CLIENTE_NO_AUTENTICADO",
-    );
-  }
+async function getEvaluacionParaCliente({ token, id, reservaId }) {
+	// ----------------------------------------------------------
+	// 1. VALIDAR TOKEN
+	// ----------------------------------------------------------
 
-  const evaluacionId = Number(id);
+	if (!token || typeof token !== "string") {
+		throw crearError(
+			"Debes iniciar sesión como cliente.",
+			401,
+			"CLIENTE_NO_AUTENTICADO",
+		);
+	}
 
-  if (!Number.isInteger(evaluacionId) || evaluacionId <= 0) {
-    throw crearError(
-      "El identificador de la evaluación no es válido.",
-      400,
-      "ID_INVALIDO",
-    );
-  }
+	// ----------------------------------------------------------
+	// 2. VALIDAR EVALUACIÓN
+	// ----------------------------------------------------------
 
-  const evaluacion = await repository.getEvaluacionParaCliente(
-    token,
-    evaluacionId,
-  );
+	const evaluacionId = Number(id);
 
-  if (!evaluacion) {
-    throw crearError(
-      "No se encontró una evaluación disponible para este cliente.",
-      404,
-      "EVALUACION_NO_ENCONTRADA",
-    );
-  }
+	if (!Number.isSafeInteger(evaluacionId) || evaluacionId <= 0) {
+		throw crearError(
+			"El identificador de la evaluación no es válido.",
+			400,
+			"ID_INVALIDO",
+		);
+	}
 
-  if (
-    evaluacion.evaluacion_estado !== "HABILITADO" ||
-    evaluacion.tipo_estado !== "ACTIVO"
-  ) {
-    throw crearError(
-      "Esta evaluación ya no está disponible.",
-      409,
-      "EVALUACION_NO_DISPONIBLE",
-    );
-  }
+	// ----------------------------------------------------------
+	// 3. VALIDAR RESERVA
+	// ----------------------------------------------------------
 
-  return evaluacion;
+	const reserva = Number(reservaId);
+
+	if (!Number.isSafeInteger(reserva) || reserva <= 0) {
+		throw crearError(
+			"Debes indicar una reserva válida.",
+			400,
+			"RESERVA_INVALIDA",
+		);
+	}
+
+	// ----------------------------------------------------------
+	// 4. CONSULTAR EVALUACIÓN DE LA RESERVA
+	// ----------------------------------------------------------
+
+	const evaluacion = await repository.getEvaluacionParaCliente(
+		token,
+		evaluacionId,
+		reserva,
+	);
+
+	if (!evaluacion) {
+		throw crearError(
+			"No se encontró una evaluación disponible para esta reserva.",
+			404,
+			"EVALUACION_NO_ENCONTRADA",
+		);
+	}
+
+	// ----------------------------------------------------------
+	// 5. VALIDAR DISPONIBILIDAD
+	// ----------------------------------------------------------
+
+	if (
+		evaluacion.evaluacion_estado !== "HABILITADO" ||
+		evaluacion.tipo_estado !== "ACTIVO"
+	) {
+		throw crearError(
+			"Esta evaluación ya no está disponible.",
+			409,
+			"EVALUACION_NO_DISPONIBLE",
+		);
+	}
+
+	return evaluacion;
 }
 
 module.exports = {
-  getEvaluacionParaCliente,
+	getEvaluacionParaCliente,
 };

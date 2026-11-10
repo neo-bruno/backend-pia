@@ -219,11 +219,13 @@ async function confirmReservation({
 
 		if (duracionSlots !== Number(servicio.duracion)) {
 			throw crearError(
-				"Los horarios seleccionados no corresponden a la duración del servicio que es de: " +
+				"El servicio que ha seleccionado es de: " +
 					servicio.duracion +
-					" min   y el horario es de: " +
+					" min   y el horario de atencion es de: " +
 					duracionSlots +
-					" min",
+					" min. Por favor Elija otro horario que tenga el mismo tiempo del servicio, de " +
+					servicio.duracion +
+					" min ",
 				400,
 				"DURACION_INVALIDA",
 			);
@@ -435,12 +437,13 @@ async function confirmReservation({
 		}
 
 		// ===================================================
-		// MARCAR DESCUENTO COMO UTILIZADO
+		// MARCAR DESCUENTO DE CLIENTE COMO UTILIZADO
 		// ===================================================
 		if (descuentoValidado) {
 			await descuentoRepository.marcarDescuentoUtilizado(
 				client,
-				descuentoValidado.asignacion_id,
+				descuentoValidado,
+				cliente.id,
 				descuentoValidado.codigo,
 				montoDescuento,
 			);

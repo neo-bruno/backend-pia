@@ -48,6 +48,8 @@ const especialidadRoutes = require("../modules/especialidad");
 const membresiaRoutes = require("../modules/membresia");
 const piaPublicoRoutes = require("../modules/pia-publico");
 const reprogramacionRoutes = require("../modules/reprogramacion");
+const dashboardRoutes = require("../modules/dashboard");
+const soporteRoutes = require("../modules/soporte");
 
 const router = express.Router();
 
@@ -100,5 +102,7 @@ router.use("/especialidad", especialidadRoutes);
 router.use("/membresia", membresiaRoutes);
 router.use("/pia-publico", piaPublicoRoutes);
 router.use("/reprogramacion", reprogramacionRoutes);
+router.use("/dashboard", dashboardRoutes);
+router.use("/soporte", soporteRoutes);
 
 module.exports = router;

@@ -5,31 +5,62 @@ const service = require("./calificacion.service");
 // ============================================================
 
 const registrarCalificacion = async (req, res, next) => {
-  try {
-    const authorization = req.headers.authorization;
+	try {
+		const authorization = req.headers.authorization;
 
-    const tokenBearer =
-      authorization && authorization.startsWith("Bearer ")
-        ? authorization.slice(7).trim()
-        : null;
+		const tokenBearer =
+			authorization && authorization.startsWith("Bearer ")
+				? authorization.slice(7).trim()
+				: null;
 
-    const token = req.headers["x-cliente-token"] || tokenBearer;
+		const token = req.headers["x-cliente-token"] || tokenBearer;
 
-    const calificacion = await service.registrarCalificacion({
-      token,
-      datos: req.body,
-    });
+		const calificacion = await service.registrarCalificacion({
+			token,
+			datos: req.body,
+		});
 
-    return res.status(201).json({
-      ok: true,
-      message: "Calificación registrada correctamente.",
-      data: calificacion,
-    });
-  } catch (error) {
-    next(error);
-  }
+		return res.status(201).json({
+			ok: true,
+			message: "Calificación registrada correctamente.",
+			data: calificacion,
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
+// ============================================================
+// CONSULTAR CALIFICACIÓN REGISTRADA
+// ============================================================
+
+const obtenerCalificacion = async (req, res, next) => {
+	try {
+		const authorization = req.headers.authorization;
+
+		const tokenBearer =
+			authorization && authorization.startsWith("Bearer ")
+				? authorization.slice(7).trim()
+				: null;
+
+		const token = req.headers["x-cliente-token"] || tokenBearer;
+
+		const data = await service.obtenerCalificacion({
+			token,
+			reservaId: req.params.reservaId,
+			evaluacionId: req.params.evaluacionId,
+		});
+
+		return res.status(200).json({
+			ok: true,
+			data,
+		});
+	} catch (error) {
+		next(error);
+	}
 };
 
 module.exports = {
-  registrarCalificacion,
+	registrarCalificacion,
+  obtenerCalificacion
 };

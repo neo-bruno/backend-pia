@@ -187,10 +187,102 @@ async function actualizarImagenesNegocio(usuarioId, archivos = {}) {
 	return actualizado;
 }
 
+// ============================================================
+// ESTADO AUTOMÁTICO DEL NEGOCIO PARA EL APP BAR
+// ============================================================
+
+async function obtenerEstadoHorario(negocioId) {
+	const id = validarId(negocioId, "negocio");
+
+	const filas = await repository.getHorariosEstadoByNegocioId(id);
+
+	if (!filas.length) {
+		throw crearError("El negocio no tiene horarios configurados.", 404);
+	}
+
+	const negocio = {
+		id: filas[0].negocio_id,
+		nombre: filas[0].negocio_nombre,
+	};
+
+	const partes = new Intl.DateTimeFormat("en-US", {
+		timeZone: "America/La_Paz",
+		weekday: "short",
+		hour: "2-digit",
+		minute: "2-digit",
+		hourCycle: "h23",
+	}).formatToParts(new Date());
+
+	const obtenerParte = (tipo) =>
+		partes.find((parte) => parte.type === tipo)?.value;
+
+	const dias = {
+		Mon: 1,
+		Tue: 2,
+		Wed: 3,
+		Thu: 4,
+		Fri: 5,
+		Sat: 6,
+		Sun: 7,
+	};
+
+	const diaActual = dias[obtenerParte("weekday")];
+	const horaActual = `${obtenerParte("hour")}:${obtenerParte("minute")}`;
+
+	const minutosActuales =
+		Number(obtenerParte("hour")) * 60 + Number(obtenerParte("minute"));
+
+	const horarios = filas
+		.filter((fila) => fila.dia_semana !== null)
+		.map((fila) => ({
+			dia_semana: Number(fila.dia_semana),
+			hora_inicio: fila.hora_inicio,
+			hora_fin: fila.hora_fin,
+		}));
+
+	const convertirMinutos = (hora) => {
+		const [horas, minutos] = hora.split(":").map(Number);
+		return horas * 60 + minutos;
+	};
+
+	const estaAbierto = horarios.some((horario) => {
+		const inicio = convertirMinutos(horario.hora_inicio);
+		const fin = convertirMinutos(horario.hora_fin);
+
+		if (horario.dia_semana === diaActual) {
+			if (inicio < fin) {
+				return minutosActuales >= inicio && minutosActuales < fin;
+			}
+
+			if (inicio > fin) {
+				return minutosActuales >= inicio;
+			}
+		}
+
+		if (inicio > fin) {
+			const diaAnterior = diaActual === 1 ? 7 : diaActual - 1;
+
+			return horario.dia_semana === diaAnterior && minutosActuales < fin;
+		}
+
+		return false;
+	});
+
+	return {
+		negocio_id: negocio.id,
+		negocio_nombre: negocio.nombre,
+		estado: estaAbierto ? "ABIERTO" : "CERRADO",
+		hora_actual: horaActual,
+		dia_semana: diaActual,
+		zona_horaria: "America/La_Paz",
+	};
+}
+
 module.exports = {
 	obtenerMiNegocio,
 	actualizarMiNegocio,
 	actualizarPaginaNegocio,
 	listarTiposNegocio,
-  actualizarImagenesNegocio
+	actualizarImagenesNegocio,
+	obtenerEstadoHorario,
 };

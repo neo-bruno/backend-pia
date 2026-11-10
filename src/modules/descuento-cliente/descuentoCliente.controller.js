@@ -91,7 +91,7 @@ const validarCodigoDescuento = async (req, res) => {
 	} catch (error) {
 		console.error("Error al validar código de descuento:", error);
 
-		return res.status(error.status || 500).json({
+		return res.status(error.status || 409).json({
 			ok: false,
 			mensaje: error.message || "No se pudo validar el código de descuento.",
 		});
@@ -102,5 +102,5 @@ module.exports = {
 	getMisDescuentos,
 	getDescuentosDelProfesional,
 	verificarDescuentosPorServicio,
-  validarCodigoDescuento,
+	validarCodigoDescuento,
 };

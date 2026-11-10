@@ -181,7 +181,47 @@ async function getServicioReserva(client, servicioId) {
 // =====================================================
 
 async function getSlotsForReservation(client, slotIds, profesionalId, fecha) {
-	const query = `
+	// ============================================================
+	// 1. BLOQUEAR LOS SLOTS EN UN ORDEN ESTABLE
+	// ============================================================
+
+	const bloqueoQuery = `
+    SELECT
+      s.id AS slot_id
+    FROM slot s
+    INNER JOIN horario_profesional hp
+      ON hp.id = s.horario_profesional_id
+    INNER JOIN horario h
+      ON h.id = hp.horario_id
+    WHERE s.id = ANY($1::INTEGER[])
+      AND hp.profesional_id = $2
+      AND h.dia_semana =
+        EXTRACT(ISODOW FROM $3::DATE)::INTEGER
+    ORDER BY s.id
+    FOR UPDATE OF s
+  `;
+
+	const bloqueoResult = await client.query(bloqueoQuery, [
+		slotIds,
+		profesionalId,
+		fecha,
+	]);
+
+	// Verificar que todos los slots solicitados sean válidos.
+	const slotsSolicitados = [...new Set(slotIds.map(Number))];
+
+	if (bloqueoResult.rows.length !== slotsSolicitados.length) {
+		const error = new Error("Uno o más horarios seleccionados no son válidos.");
+
+		error.status = 400;
+		throw error;
+	}
+
+	// ============================================================
+	// 2. COMPROBAR DISPONIBILIDAD CON UNA NUEVA LECTURA
+	// ============================================================
+
+	const disponibilidadQuery = `
     SELECT
       s.id AS slot_id,
       s.hora_inicio,
@@ -206,7 +246,11 @@ async function getSlotsForReservation(client, slotIds, profesionalId, fecha) {
         WHERE rs.slot_id = s.id
           AND rs.activo = TRUE
           AND r.fecha = $3::DATE
-          AND r.estado IN ('PENDIENTE', 'CONFIRMADA', 'COMPLETADA')
+          AND r.estado IN (
+            'PENDIENTE',
+            'CONFIRMADA',
+            'COMPLETADA'
+          )
       ) AS reservado,
 
       -- Bloqueo activo para el día solicitado.
@@ -241,11 +285,13 @@ async function getSlotsForReservation(client, slotIds, profesionalId, fecha) {
         EXTRACT(ISODOW FROM $3::DATE)::INTEGER
 
     ORDER BY s.hora_inicio ASC
-
-    FOR UPDATE OF s
   `;
 
-	const { rows } = await client.query(query, [slotIds, profesionalId, fecha]);
+	const { rows } = await client.query(disponibilidadQuery, [
+		slotsSolicitados,
+		profesionalId,
+		fecha,
+	]);
 
 	return rows;
 }
@@ -383,7 +429,6 @@ async function createHistorialReserva(client, datos) {
 
     INNER JOIN reserva_slot rs
       ON rs.reserva_id = r.id
-      AND rs.activo = TRUE
       AND rs.orden = 1
 
     INNER JOIN slot sl

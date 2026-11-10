@@ -59,36 +59,63 @@ exports.getClientes = async (
       INNER JOIN persona p
         ON p.id = c.persona_id
 
+      -- ================================================
+      -- SEGMENTACIÓN ACTUAL DEL CLIENTE
+      -- ================================================
+
       LEFT JOIN LATERAL (
         SELECT
           s.id,
           s.nombre,
           s.orden
         FROM historial h
+
+        INNER JOIN reserva r
+          ON r.id = h.reserva_id
+
         INNER JOIN historial_segmentacion hs
           ON hs.historial_id = h.id
+
         INNER JOIN segmentacion s
           ON s.id = hs.segmentacion_id
+
         WHERE h.cliente_id = c.id
           AND h.profesional_id = $1
+          AND r.estado = 'COMPLETADA'
           AND s.estado = 'ACTIVO'
+
         ORDER BY
           h.fecha DESC,
           h.id DESC,
           s.orden DESC
+
         LIMIT 1
       ) seg ON TRUE
+
+      -- ================================================
+      -- ATENCIONES REALMENTE COMPLETADAS
+      -- ================================================
 
       LEFT JOIN LATERAL (
         SELECT
           COUNT(*) AS total,
           MAX(h.fecha) AS ultima_atencion
+
         FROM historial h
+
+        INNER JOIN reserva r
+          ON r.id = h.reserva_id
+
         WHERE h.cliente_id = c.id
           AND h.profesional_id = $1
+          AND r.estado = 'COMPLETADA'
+
       ) atenciones ON TRUE
 
+      -- ================================================
       -- DESCUENTOS ASIGNADOS AL CLIENTE
+      -- ================================================
+
       LEFT JOIN LATERAL (
         SELECT
           COUNT(*) FILTER (
@@ -130,7 +157,12 @@ exports.getClientes = async (
             d.fecha_fin IS NULL
             OR d.fecha_fin >= CURRENT_DATE
           )
+
       ) descuentos ON TRUE
+
+      -- ================================================
+      -- FILTROS
+      -- ================================================
 
       WHERE (
         $2 = ''
@@ -148,10 +180,13 @@ exports.getClientes = async (
     SELECT
       *,
       COUNT(*) OVER()::INTEGER AS total_registros
+
     FROM datos_clientes
+
     ORDER BY
       ultima_atencion DESC NULLS LAST,
       nombre ASC
+
     LIMIT $4 OFFSET $5
   `;
 
@@ -162,7 +197,18 @@ exports.getClientes = async (
 		limite,
 		offset,
 	]);
-
+  console.log("PROFESIONAL ID:", profesionalId);
+  console.log("FILTRO SEGMENTACIÓN:", segmentacionId);
+  console.log(
+  "CLIENTES CON SEGMENTACIÓN:",
+  rows.map((c) => ({
+    cliente_id: c.cliente_id,
+    nombre: c.nombre,
+    segmentacion_id: c.segmentacion_id,
+    segmentacion_nombre: c.segmentacion_nombre,
+    profesional_id: profesionalId,
+  })),
+);
 	return {
 		clientes: rows.map(({ total_registros, ...cliente }) => cliente),
 		total: rows.length ? rows[0].total_registros : 0,

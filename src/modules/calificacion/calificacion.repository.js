@@ -35,25 +35,56 @@ async function registrarCalificacion(clienteId, datos) {
 		// --------------------------------------------------------
 		// 1. Verificar que la reserva pertenezca al cliente
 		// --------------------------------------------------------
-
 		const reservaQuery = `
-      SELECT
-        r.id,
-        r.cliente_id,
-        r.servicio_id,
-        r.estado,
-        s.profesional_id,
-        pn.negocio_id
-      FROM reserva r
-      INNER JOIN servicio s
-        ON s.id = r.servicio_id
-      LEFT JOIN profesional_negocio pn
-        ON pn.profesional_id = s.profesional_id
-      AND pn.estado = 'HABILITADO'
-      WHERE r.id = $1
-        AND r.cliente_id = $2
-      FOR UPDATE OF r;
-    `;
+			SELECT
+				r.id,
+				r.cliente_id,
+				r.servicio_id,
+				r.estado,
+
+				s.profesional_id,
+
+				COALESCE(
+					negocio_reserva.negocio_id,
+					h.negocio_id
+				) AS negocio_id
+
+			FROM reserva r
+
+			INNER JOIN servicio s
+				ON s.id = r.servicio_id
+
+			LEFT JOIN LATERAL (
+				SELECT
+					ho.negocio_id
+
+				FROM reserva_slot rs
+
+				INNER JOIN slot sl
+					ON sl.id = rs.slot_id
+
+				INNER JOIN horario_profesional hp
+					ON hp.id = sl.horario_profesional_id
+
+				INNER JOIN horario ho
+					ON ho.id = hp.horario_id
+
+				WHERE rs.reserva_id = r.id
+
+				ORDER BY rs.id
+
+				LIMIT 1
+
+			) negocio_reserva ON TRUE
+
+			LEFT JOIN historial h
+				ON h.reserva_id = r.id
+
+			WHERE r.id = $1
+				AND r.cliente_id = $2
+
+			FOR UPDATE OF r;
+		`;
 
 		const reservaResult = await client.query(reservaQuery, [
 			datos.reserva_id,
@@ -210,7 +241,7 @@ async function registrarCalificacion(clienteId, datos) {
 		];
 
 		const insertResult = await client.query(insertQuery, insertValues);
-    const calificacion = insertResult.rows[0];
+		const calificacion = insertResult.rows[0];
 
 		// --------------------------------------------------------
 		// 6. Recalcular promedio y cantidad de calificaciones
@@ -307,7 +338,88 @@ async function registrarCalificacion(clienteId, datos) {
 	}
 }
 
+// ============================================================
+// OBTENER CALIFICACIÓN DE UNA RESERVA Y EVALUACIÓN
+// ============================================================
+
+async function getCalificacionByReservaEvaluacion(
+	clienteId,
+	reservaId,
+	evaluacionId,
+) {
+	const query = `
+    SELECT
+      c.id,
+      c.evaluacion_id,
+      c.reserva_id,
+      c.cliente_id,
+      c.puntaje,
+      c.titulo,
+      c.observacion,
+      c.estado,
+      c.fecha,
+      c.hora,
+      c.created_at,
+      c.updated_at
+
+    FROM calificacion c
+
+    WHERE c.cliente_id = $1
+      AND c.reserva_id = $2
+      AND c.evaluacion_id = $3
+      AND c.estado = 'ACTIVA'
+
+    LIMIT 1;
+  `;
+
+	const { rows } = await pool.query(query, [
+		clienteId,
+		reservaId,
+		evaluacionId,
+	]);
+
+	return rows[0] || null;
+}
+
+// ============================================================
+// OBTENER CALIFICACIÓN DE UNA RESERVA
+// ============================================================
+
+async function getCalificacionByReserva(clienteId, reservaId, evaluacionId) {
+	const query = `
+    SELECT
+      id,
+      evaluacion_id,
+      reserva_id,
+      cliente_id,
+      puntaje,
+      titulo,
+      observacion,
+      estado,
+      fecha,
+      hora,
+      created_at,
+      updated_at
+    FROM calificacion
+    WHERE cliente_id = $1
+      AND reserva_id = $2
+      AND evaluacion_id = $3
+      AND estado = 'ACTIVA'
+    LIMIT 1;
+  `;
+
+	const { rows } = await pool.query(query, [
+		clienteId,
+		reservaId,
+		evaluacionId,
+	]);
+
+	return rows[0] || null;
+}
+
 module.exports = {
 	getClienteByToken,
 	registrarCalificacion,
+	getCalificacionByReservaEvaluacion,
+	getCalificacionByReserva,
 };

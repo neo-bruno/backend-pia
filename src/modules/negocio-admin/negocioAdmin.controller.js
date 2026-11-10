@@ -101,10 +101,37 @@ async function actualizarImagenesNegocio(req, res, next) {
 	}
 }
 
+// ============================================================
+// ESTADO DEL HORARIO PARA EL APP BAR
+// ============================================================
+
+const obtenerEstadoHorario = async (req, res, next) => {
+	try {
+		const negocioId = req.usuario?.negocio_id;
+
+		if (!negocioId) {
+			return res.status(400).json({
+				ok: false,
+				message: "No se encontró un negocio asociado a la sesión.",
+			});
+		}
+
+		const resultado = await service.obtenerEstadoHorario(negocioId);
+
+		return res.status(200).json({
+			ok: true,
+			data: resultado,
+		});
+	} catch (error) {
+		next(error);
+	}
+};
+
 module.exports = {
 	obtenerMiNegocio,
 	actualizarMiNegocio,
 	actualizarPaginaNegocio,
 	listarTiposNegocio,
-  actualizarImagenesNegocio
+	actualizarImagenesNegocio,
+	obtenerEstadoHorario,
 };

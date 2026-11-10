@@ -116,7 +116,7 @@ CREATE TABLE usuario (
     id SERIAL PRIMARY KEY,
     persona_id INTEGER NOT NULL REFERENCES persona(id),
     rol_id INTEGER NOT NULL REFERENCES rol(id),
-    telefono VARCHAR(30) NOT NULL,
+    telefono VARCHAR(30) NOT NULL UNIQUE,
     password TEXT NOT NULL,
     estado estado_usuario_enum NOT NULL DEFAULT 'HABILITADO',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -168,7 +168,8 @@ CREATE TABLE profesional_negocio (
     profesional_id INTEGER NOT NULL REFERENCES profesional(id),    
     acceso acceso_profesional_negocio_enum NOT NULL,
     estado estado_profesional_negocio_enum NOT NULL,
-    fecha_creacion DATE NOT NULL DEFAULT CURRENT_DATE		
+    fecha_creacion DATE NOT NULL DEFAULT CURRENT_DATE,
+		CONSTRAINT uq_profesional_negocio UNIQUE (negocio_id, profesional_id)
 );
 
 CREATE TABLE horario (
@@ -321,7 +322,7 @@ CREATE TABLE descuento_servicio (
     descuento_id INTEGER NOT NULL REFERENCES descuento(id),
 
     tipo_descuento tipo_descuento_enum NOT NULL DEFAULT 'CLIENTE',
-    estado estado_descuento_enum NOT NULL DEFAULT 'ACTIVO',
+		estado estado_descuento_enum NOT NULL DEFAULT 'ACTIVO',
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -348,6 +349,7 @@ CREATE TABLE descuento_servicio_cliente (
     CONSTRAINT chk_descuento_aplicado_monto CHECK (monto_aplicado >= 0)
 );
 
+
 CREATE TABLE reserva (
     id SERIAL PRIMARY KEY,
     cliente_id INTEGER NOT NULL REFERENCES cliente(id),
@@ -366,6 +368,43 @@ CREATE TABLE reserva (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_reserva_horas CHECK (hora_fin > hora_inicio)
+);
+
+-- ============================================================
+-- TABLA: bloqueo
+-- Bloqueos temporales de slots para una fecha específica
+-- ============================================================
+
+CREATE TABLE bloqueo (
+    id SERIAL PRIMARY KEY,
+
+    negocio_id INTEGER NOT NULL,
+    profesional_id INTEGER NOT NULL,
+
+    fecha DATE NOT NULL,
+
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+
+    motivo VARCHAR(255),
+
+    estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_bloqueo_negocio
+        FOREIGN KEY (negocio_id)
+        REFERENCES negocio(id),
+
+    CONSTRAINT fk_bloqueo_profesional
+        FOREIGN KEY (profesional_id)
+        REFERENCES profesional(id),
+
+    CONSTRAINT chk_bloqueo_horas
+        CHECK (hora_fin > hora_inicio),
+
+    CONSTRAINT chk_bloqueo_estado
+        CHECK (estado IN ('ACTIVO', 'CANCELADO'))
 );
 
 CREATE TABLE reserva_slot (
@@ -460,6 +499,7 @@ CREATE TABLE comprobante (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE TABLE negocio_archivo (
     id SERIAL PRIMARY KEY,
     negocio_id INTEGER NOT NULL REFERENCES negocio(id),
@@ -471,6 +511,7 @@ CREATE TABLE negocio_archivo (
 		
     UNIQUE (negocio_id, archivo_id)
 );
+
 
 CREATE TABLE profesional_archivo (
     id SERIAL PRIMARY KEY,
@@ -547,6 +588,28 @@ CREATE TABLE tipo_calificacion (
     CONSTRAINT uq_tipo_calificacion_objetivo_codigo UNIQUE (objetivo, codigo)
 );
 
+CREATE TABLE evaluacion (
+    id SERIAL PRIMARY KEY,
+
+    cliente_id INTEGER REFERENCES cliente(id),
+    profesional_id INTEGER REFERENCES profesional(id),
+    negocio_id INTEGER REFERENCES negocio(id),
+    servicio_id INTEGER REFERENCES servicio(id),
+    gerencia_id INTEGER REFERENCES gerencia(id),		
+
+    tipo_calificacion_id INTEGER NOT NULL REFERENCES tipo_calificacion(id),
+
+    puntaje_promedio NUMERIC(5,2) NOT NULL DEFAULT 0,
+    cantidad_calificaciones INTEGER NOT NULL DEFAULT 0,
+
+    estado estado_evaluacion_enum NOT NULL DEFAULT 'DESHABILITADO',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_evaluacion_tipo_calificacion UNIQUE (tipo_calificacion_id)
+);
+
 CREATE TABLE calificacion (
     id SERIAL PRIMARY KEY,
     evaluacion_id INTEGER NOT NULL REFERENCES evaluacion(id),
@@ -577,34 +640,12 @@ CREATE TABLE calificacion (
 CREATE TABLE ranking (
     id SERIAL PRIMARY KEY,
     tipo tipo_ranking_enum NOT NULL,
-    descripcion TEXT,
+    descripcion TEXT,    
     cantidad_minima_calificaciones INTEGER NOT NULL,
     estado estado_ranking_enum NOT NULL DEFAULT 'ACTIVO',
     fecha_creacion DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE evaluacion (
-    id SERIAL PRIMARY KEY,
-
-    cliente_id INTEGER REFERENCES cliente(id),
-    profesional_id INTEGER REFERENCES profesional(id),
-    negocio_id INTEGER REFERENCES negocio(id),
-    servicio_id INTEGER REFERENCES servicio(id),
-    gerencia_id INTEGER REFERENCES gerencia(id),    
-
-    tipo_calificacion_id INTEGER NOT NULL REFERENCES tipo_calificacion(id),
-
-    puntaje_promedio NUMERIC(5,2) NOT NULL DEFAULT 0,
-    cantidad_calificaciones INTEGER NOT NULL DEFAULT 0,
-
-    estado estado_evaluacion_enum NOT NULL DEFAULT 'DESHABILITADO',
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT uq_evaluacion_tipo_calificacion UNIQUE (tipo_calificacion_id)
 );
 
 CREATE TABLE ranking_detalle (
@@ -645,7 +686,7 @@ CREATE TABLE notificacion (
     profesional_id INTEGER REFERENCES profesional(id),
     gerente_id INTEGER REFERENCES gerente(id),
     gerencia_id INTEGER REFERENCES gerencia(id),
-    negocio_id INTEGER REFERENCES negocio(id),
+		negocio_id INTEGER REFERENCES negocio(id),
 
     reserva_id INTEGER REFERENCES reserva(id),
     evaluacion_id INTEGER REFERENCES evaluacion(id),
@@ -694,43 +735,6 @@ CREATE TABLE favorito (
     )
 );
 
--- ============================================================
--- TABLA: bloqueo
--- Bloqueos temporales de slots para una fecha específica
--- ============================================================
-
-CREATE TABLE bloqueo (
-    id SERIAL PRIMARY KEY,
-
-    negocio_id INTEGER NOT NULL,
-    profesional_id INTEGER NOT NULL,
-
-    fecha DATE NOT NULL,
-
-    hora_inicio TIME NOT NULL,
-    hora_fin TIME NOT NULL,
-
-    motivo VARCHAR(255),
-
-    estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
-
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_bloqueo_negocio
-        FOREIGN KEY (negocio_id)
-        REFERENCES negocio(id),
-
-    CONSTRAINT fk_bloqueo_profesional
-        FOREIGN KEY (profesional_id)
-        REFERENCES profesional(id),
-
-    CONSTRAINT chk_bloqueo_horas
-        CHECK (hora_fin > hora_inicio),
-
-    CONSTRAINT chk_bloqueo_estado
-        CHECK (estado IN ('ACTIVO', 'CANCELADO'))
-);
-
 CREATE TABLE especialidad (
     id SERIAL PRIMARY KEY,
 
@@ -746,6 +750,161 @@ CREATE TABLE especialidad (
     CONSTRAINT uq_especialidad_negocio_nombre
         UNIQUE (negocio_id, nombre)
 );
+
+-- =========================================================
+-- 1. CATEGORIAS DE AYUDA
+-- =========================================================
+
+CREATE TABLE ayuda_categoria (
+    id SERIAL PRIMARY KEY,
+
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion TEXT,
+    icono VARCHAR(100),
+
+    orden INTEGER NOT NULL DEFAULT 1,
+    estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_ayuda_categoria_estado
+        CHECK (estado IN ('ACTIVO', 'INACTIVO')),
+
+    CONSTRAINT chk_ayuda_categoria_orden
+        CHECK (orden > 0)
+);
+
+
+-- =========================================================
+-- 2. PREGUNTAS FRECUENTES
+-- =========================================================
+
+CREATE TABLE ayuda_pregunta (
+    id SERIAL PRIMARY KEY,
+
+    categoria_id INTEGER NOT NULL
+        REFERENCES ayuda_categoria(id),
+
+    pregunta VARCHAR(250) NOT NULL,
+    respuesta TEXT NOT NULL,
+
+    orden INTEGER NOT NULL DEFAULT 1,
+    destacada BOOLEAN NOT NULL DEFAULT FALSE,
+
+    estado VARCHAR(20) NOT NULL DEFAULT 'ACTIVO',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_ayuda_pregunta_estado
+        CHECK (estado IN ('ACTIVO', 'INACTIVO')),
+
+    CONSTRAINT chk_ayuda_pregunta_orden
+        CHECK (orden > 0)
+);
+
+
+-- =========================================================
+-- 3. TICKETS DE SOPORTE
+-- =========================================================
+
+CREATE TABLE soporte_ticket (
+    id SERIAL PRIMARY KEY,
+
+    codigo VARCHAR(30) NOT NULL UNIQUE,
+
+    cliente_id INTEGER NOT NULL
+        REFERENCES cliente(id),
+
+    categoria_id INTEGER NOT NULL
+        REFERENCES ayuda_categoria(id),
+
+    reserva_id INTEGER
+        REFERENCES reserva(id),
+
+    asignado_usuario_id INTEGER
+        REFERENCES usuario(id),
+
+    asunto VARCHAR(200) NOT NULL,
+
+    estado VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE',
+
+    cerrado_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_soporte_ticket_estado
+        CHECK (
+            estado IN (
+                'PENDIENTE',
+                'EN_REVISION',
+                'RESPONDIDO',
+                'CERRADO'
+            )
+        )
+);
+
+
+-- =========================================================
+-- 4. MENSAJES DEL TICKET
+-- =========================================================
+
+CREATE TABLE soporte_mensaje (
+    id SERIAL PRIMARY KEY,
+
+    ticket_id INTEGER NOT NULL
+        REFERENCES soporte_ticket(id) ON DELETE CASCADE,
+
+    tipo_remitente VARCHAR(20) NOT NULL,
+
+    cliente_id INTEGER
+        REFERENCES cliente(id),
+
+    usuario_id INTEGER
+        REFERENCES usuario(id),
+
+    mensaje TEXT NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_soporte_mensaje_remitente
+        CHECK (
+            (
+                tipo_remitente = 'CLIENTE'
+                AND cliente_id IS NOT NULL
+                AND usuario_id IS NULL
+            )
+            OR
+            (
+                tipo_remitente = 'SOPORTE'
+                AND usuario_id IS NOT NULL
+                AND cliente_id IS NULL
+            )
+        )
+);
+
+
+-- =========================================================
+-- 5. ARCHIVOS ADJUNTOS DE LOS MENSAJES
+-- =========================================================
+
+CREATE TABLE soporte_mensaje_archivo (
+    id SERIAL PRIMARY KEY,
+
+    mensaje_id INTEGER NOT NULL
+        REFERENCES soporte_mensaje(id) ON DELETE CASCADE,
+
+    archivo_id INTEGER NOT NULL
+        REFERENCES archivo(id),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_soporte_mensaje_archivo
+        UNIQUE (mensaje_id, archivo_id)
+);
+
 
 -- ÍNDICES
 CREATE INDEX idx_usuario_persona ON usuario(persona_id);
@@ -773,7 +932,6 @@ CREATE INDEX idx_calificacion_profesional ON calificacion(profesional_id);
 CREATE INDEX idx_calificacion_negocio ON calificacion(negocio_id);
 CREATE INDEX idx_calificacion_servicio ON calificacion(servicio_id);
 CREATE INDEX idx_calificacion_gerencia ON calificacion(gerencia_id);
-CREATE INDEX idx_evaluacion_ranking ON evaluacion(ranking_id);
 CREATE INDEX idx_ranking_detalle_ranking ON ranking_detalle(ranking_id);
 CREATE INDEX idx_reclamo_cliente ON reclamo(cliente_id);
 CREATE INDEX idx_reclamo_gerencia ON reclamo(gerencia_id);
@@ -790,10 +948,36 @@ CREATE UNIQUE INDEX uq_favorito_cliente_servicio ON favorito(cliente_id, servici
 CREATE UNIQUE INDEX IF NOT EXISTS uq_evaluacion_habilitada_por_objetivo ON evaluacion (( SELECT NULL));
 CREATE INDEX idx_notificacion_cliente_reserva_evaluacion ON notificacion (cliente_id, reserva_id, evaluacion_id);
 
-CREATE UNIQUE INDEX uq_descuento_servicio_cliente_activo ON descuento_servicio_cliente (descuento_servicio_id, cliente_id) WHERE estado_aplicado = 'ACTIVO';
+CREATE UNIQUE INDEX uq_descuento_servicio_cliente_activo ON descuento_servicio_cliente (descuento_servicio_id, cliente_id) WHERE estado_asignacion = 'ACTIVO';
+-- Impedir que un cliente utilice dos veces
+-- el mismo descuento asociado al mismo servicio.
+CREATE UNIQUE INDEX uq_descuento_servicio_cliente_uso ON descuento_servicio_cliente ( descuento_servicio_id, cliente_id )
+WHERE cliente_id IS NOT NULL;
 
 CREATE INDEX idx_especialidad_busqueda ON especialidad (negocio_id, estado);
 CREATE INDEX idx_especialidad_nombre ON especialidad (LOWER(nombre));
+
+-- =========================================================
+-- INDICES
+-- =========================================================
+
+CREATE INDEX idx_ayuda_pregunta_categoria
+    ON ayuda_pregunta(categoria_id, estado, orden);
+
+CREATE INDEX idx_soporte_ticket_cliente
+    ON soporte_ticket(cliente_id, created_at DESC);
+
+CREATE INDEX idx_soporte_ticket_estado
+    ON soporte_ticket(estado, created_at DESC);
+
+CREATE INDEX idx_soporte_ticket_asignado
+    ON soporte_ticket(asignado_usuario_id);
+
+CREATE INDEX idx_soporte_mensaje_ticket
+    ON soporte_mensaje(ticket_id, created_at);
+
+CREATE INDEX idx_soporte_mensaje_archivo_mensaje
+    ON soporte_mensaje_archivo(mensaje_id);
 
 COMMIT;
 	

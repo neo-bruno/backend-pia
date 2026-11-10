@@ -11,4 +11,9 @@ const router = express.Router();
 // ============================================================
 router.post("/", validarRegistrarCalificacion, controller.registrarCalificacion);
 
+// ============================================================
+// CONSULTAR CALIFICACIÓN DE UNA RESERVA
+// ============================================================
+router.get("/reserva/:reservaId/evaluacion/:evaluacionId", controller.obtenerCalificacion);
+
 module.exports = router;

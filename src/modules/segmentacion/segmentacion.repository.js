@@ -1,5 +1,5 @@
 const getSegmentacion = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
       s.id,
       s.nombre,
@@ -15,12 +15,12 @@ const getSegmentacion = async (client, profesionalId) => {
     ORDER BY s.orden ASC
   `;
 
-  const { rows } = await client.query(query);
-  return rows;
+	const { rows } = await client.query(query);
+	return rows;
 };
 
 const getAtencionesCliente = async (client, profesionalId, clienteId) => {
-  const query = `
+	const query = `
     SELECT
       h.id AS historial_id,
       h.cliente_id,
@@ -37,13 +37,13 @@ const getAtencionesCliente = async (client, profesionalId, clienteId) => {
     ORDER BY h.fecha ASC, h.id ASC
   `;
 
-  const { rows } = await client.query(query, [profesionalId, clienteId]);
+	const { rows } = await client.query(query, [profesionalId, clienteId]);
 
-  return rows;
+	return rows;
 };
 
 const getHistorialSegmentacion = async (client, profesionalId, clienteId) => {
-  const query = `
+	const query = `
     SELECT
       h.id AS historial_id,
       h.fecha AS fecha_atencion,
@@ -56,39 +56,54 @@ const getHistorialSegmentacion = async (client, profesionalId, clienteId) => {
       s.max_intervalo_dias,
       s.max_dias_ultima_atencion
     FROM historial h
+
+    INNER JOIN reserva r
+      ON r.id = h.reserva_id
+      AND r.estado = 'COMPLETADA'
+
     INNER JOIN historial_segmentacion hs
       ON hs.historial_id = h.id
+
     INNER JOIN segmentacion s
       ON s.id = hs.segmentacion_id
+
     WHERE h.cliente_id = $1
       AND h.profesional_id = $2
+
     ORDER BY h.fecha DESC, h.id DESC, s.orden DESC
   `;
 
-  const { rows } = await client.query(query, [clienteId, profesionalId]);
+	const { rows } = await client.query(query, [clienteId, profesionalId]);
 
-  return rows;
+	return rows;
 };
 
 const registrarSegmentacion = async (client, historialId, segmentacionId) => {
-  const query = `
+	await client.query(
+		`
+      DELETE FROM historial_segmentacion
+      WHERE historial_id = $1
+    `,
+		[historialId],
+	);
+
+	const query = `
     INSERT INTO historial_segmentacion (
       historial_id,
       segmentacion_id
     )
     VALUES ($1, $2)
-    ON CONFLICT (historial_id, segmentacion_id) DO NOTHING
     RETURNING id
   `;
 
-  const { rows } = await client.query(query, [historialId, segmentacionId]);
+	const { rows } = await client.query(query, [historialId, segmentacionId]);
 
-  return rows[0] || null;
+	return rows[0] || null;
 };
 
 module.exports = {
-  getSegmentacion,
-  getAtencionesCliente,
-  getHistorialSegmentacion,
-  registrarSegmentacion,
+	getSegmentacion,
+	getAtencionesCliente,
+	getHistorialSegmentacion,
+	registrarSegmentacion,
 };

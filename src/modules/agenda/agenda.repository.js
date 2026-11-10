@@ -94,6 +94,16 @@ const getAgendaByFecha = async (client, negocioId, profesionalId, fecha) => {
       r.estado AS reserva_estado,
 
       -- =================================================
+      -- IMPORTES DE LA RESERVA
+      -- =================================================
+      r.precio_original AS reserva_precio_original,
+      r.monto_promocion AS reserva_monto_promocion,
+      r.monto_descuento AS reserva_monto_descuento,
+      r.precio_aplicable AS reserva_precio_aplicable,
+      r.monto_pagado AS reserva_monto_pagado,
+      r.saldo AS reserva_saldo,
+
+      -- =================================================
       -- CLIENTE
       -- =================================================
       c.id AS cliente_id,

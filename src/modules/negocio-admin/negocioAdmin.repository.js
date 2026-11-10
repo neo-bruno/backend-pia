@@ -231,6 +231,40 @@ async function updateImagenesNegocio(negocioId, datos) {
 	return rows[0] || null;
 }
 
+// ============================================================
+// OBTENER HORARIOS DEL NEGOCIO AUTORIZADO PARA EL APP BAR
+// ============================================================
+
+// ============================================================
+// OBTENER HORARIOS PARA CALCULAR ESTADO DEL NEGOCIO
+// No depende de permisos administrativos.
+// ============================================================
+
+async function getHorariosEstadoByNegocioId(negocioId) {
+	const sql = `
+    SELECT
+      n.id AS negocio_id,
+      n.nombre AS negocio_nombre,
+      h.dia_semana,
+      h.turno,
+      TO_CHAR(h.hora_inicio, 'HH24:MI') AS hora_inicio,
+      TO_CHAR(h.hora_fin, 'HH24:MI') AS hora_fin
+
+    FROM negocio n
+
+    LEFT JOIN horario h
+      ON h.negocio_id = n.id
+
+    WHERE n.id = $1
+
+    ORDER BY h.dia_semana, h.turno
+  `;
+
+	const { rows } = await pool.query(sql, [negocioId]);
+
+	return rows;
+}
+
 module.exports = {
 	getNegocioByUsuarioId,
 	getTipoNegocioById,
@@ -239,4 +273,6 @@ module.exports = {
 	getTiposNegocio,
 	existsSlug,
 	updateImagenesNegocio,
+
+	getHorariosEstadoByNegocioId,
 };

@@ -46,4 +46,10 @@ router.patch(
 	controller.actualizarImagenesNegocio,
 );
 
+router.get(
+	"/mi-negocio/estado-horario",
+	verifyToken,
+	controller.obtenerEstadoHorario,
+);
+
 module.exports = router;

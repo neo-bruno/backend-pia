@@ -37,12 +37,6 @@ const getMisDescuentos = async (token) => {
 };
 
 const getDescuentosDelProfesional = async (token, profesionalId) => {
-	if (!token) {
-		const error = new Error("Token de cliente no proporcionado");
-		error.status = 401;
-		throw error;
-	}
-
 	const idProfesional = Number(profesionalId);
 
 	if (!Number.isInteger(idProfesional) || idProfesional <= 0) {
@@ -51,6 +45,18 @@ const getDescuentosDelProfesional = async (token, profesionalId) => {
 		throw error;
 	}
 
+	// 1. Consultar descuentos públicos vigentes.
+	const descuentosPublicos = await repository.getDescuentosPublicosByProfesional(idProfesional);
+
+	// 2. Si no hay token, devolver las promociones públicas.
+	if (!token) {
+		return {
+			total: descuentosPublicos.length,
+			descuentos: descuentosPublicos,
+		};
+	}
+
+	// 3. Si hay token, consultar también los descuentos personales.
 	const cliente = await repository.getClienteByToken(token);
 
 	if (!cliente) {
@@ -59,10 +65,13 @@ const getDescuentosDelProfesional = async (token, profesionalId) => {
 		throw error;
 	}
 
-	const descuentos = await repository.getDescuentosByClienteYProfesional(
+	const descuentosCliente = await repository.getDescuentosByClienteYProfesional(
 		cliente.id,
 		idProfesional,
 	);
+
+	// Se combinan ambas fuentes.
+	const descuentos = [...descuentosPublicos, ...descuentosCliente];
 
 	return {
 		total: descuentos.length,
@@ -193,5 +202,5 @@ module.exports = {
 	getMisDescuentos,
 	getDescuentosDelProfesional,
 	verificarDescuentosPorServicio,
-  validarCodigoDescuento,
+	validarCodigoDescuento,
 };

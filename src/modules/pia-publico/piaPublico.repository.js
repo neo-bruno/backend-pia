@@ -546,25 +546,8 @@ const getServiciosPublicados = async (filtros = {}) => {
 				Todas las calificaciones activas
 			========================================= */
 
-			COALESCE(
-					(
-							SELECT ROUND(AVG(c.puntaje), 1)
-							FROM calificacion c
-							WHERE c.servicio_id = s.id
-								AND c.estado = 'ACTIVA'
-					),
-					0
-			) AS rating,
-
-			COALESCE(
-					(
-							SELECT COUNT(c.id)
-							FROM calificacion c
-							WHERE c.servicio_id = s.id
-								AND c.estado = 'ACTIVA'
-					),
-					0
-			) AS resenas
+			COALESCE(calificaciones.rating, 0) AS rating,
+			COALESCE(calificaciones.resenas, 0) AS resenas
 
 		${sqlBase}
 
