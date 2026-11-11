@@ -39,8 +39,43 @@ const getServiciosConDescuentoPublico = async () => {
 	return repository.getServiciosConDescuentoPublico();
 };
 
+// =====================================================
+// BÚSQUEDA INDEPENDIENTE DE NEGOCIOS
+// =====================================================
+const buscarNegocios = async (filtros = {}) => {
+	console.log("FILTROS EN SERVICE:", filtros);
+	return repository.buscarNegociosPublicados({
+		pagina: filtros.pagina,
+		limite: filtros.limite,
+		departamento: filtros.departamento?.trim() || undefined,
+		municipio: filtros.municipio?.trim() || undefined,
+		tipoNegocioId: filtros.tipoNegocioId,
+		buscar: filtros.buscar?.trim() || undefined,
+	});
+};
+
+// =====================================================
+// BÚSQUEDA INDEPENDIENTE DE SERVICIOS
+// =====================================================
+const buscarServicios = async (filtros = {}) => {
+	return repository.buscarServiciosPublicados({
+		pagina: filtros.pagina,
+		limite: filtros.limite,
+		departamento: filtros.departamento?.trim() || undefined,
+		municipio: filtros.municipio?.trim() || undefined,
+		tipoNegocioId: filtros.tipoNegocioId,
+		negocioId: filtros.negocioId,
+		profesionalId: filtros.profesionalId,
+		buscar: filtros.buscar?.trim() || undefined,
+		precioMin: filtros.precioMin,
+		precioMax: filtros.precioMax,
+	});
+};
+
 module.exports = {
 	getNegocios,
 	getServicios,
 	getServiciosConDescuentoPublico,
+	buscarNegocios,
+	buscarServicios,
 };

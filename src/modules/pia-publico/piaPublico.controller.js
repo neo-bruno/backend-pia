@@ -67,8 +67,56 @@ const getServiciosConDescuentoPublico = async (req, res) => {
 	}
 };
 
+// =====================================================
+// GET /busqueda/negocios
+// =====================================================
+const buscarNegocios = async (req, res) => {
+	try {
+		console.log("QUERY RECIBIDA:", req.query);
+		const resultado = await service.buscarNegocios(req.query);
+
+		return res.status(200).json({
+			ok: true,
+			mensaje: "Búsqueda de negocios completada",
+			...resultado,
+		});
+	} catch (error) {
+		console.error("Error al buscar negocios públicos:", error);
+
+		return res.status(500).json({
+			ok: false,
+			mensaje: "Error al buscar negocios públicos",
+		});
+	}
+};
+
+// =====================================================
+// GET /busqueda/servicios
+// =====================================================
+const buscarServicios = async (req, res) => {
+	try {
+		const resultado = await service.buscarServicios(req.query);
+
+		return res.status(200).json({
+			ok: true,
+			mensaje: "Búsqueda de servicios completada",
+			...resultado,
+		});
+	} catch (error) {
+		console.error("Error al buscar servicios públicos:", error);
+
+		return res.status(500).json({
+			ok: false,
+			mensaje: "Error al buscar servicios públicos",
+		});
+	}
+};
+
 module.exports = {
 	getNegocios,
 	getServicios,
 	getServiciosConDescuentoPublico,
+
+	buscarNegocios,
+	buscarServicios,
 };

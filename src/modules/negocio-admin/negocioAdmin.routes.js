@@ -52,4 +52,11 @@ router.get(
 	controller.obtenerEstadoHorario,
 );
 
+router.post(
+	"/mi-negocio/codigo",
+	verifyToken,
+	allowRoles("ADMIN"),
+	controller.generarNuevoCodigo,
+);
+
 module.exports = router;

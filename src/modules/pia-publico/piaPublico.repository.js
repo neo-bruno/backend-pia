@@ -32,21 +32,68 @@ const construirFiltrosNegocios = (filtros = {}) => {
 		agregarParametro("n.tipo_negocio_id", Number(filtros.tipoNegocioId));
 	}
 
-	if (filtros.buscar) {
-		parametros.push(`%${filtros.buscar.trim().toLowerCase()}%`);
-		const parametro = `$${parametros.length}`;
+	if (filtros.buscar?.trim()) {
+		const palabras = filtros.buscar
+			.trim()
+			.toLowerCase()
+			.split(/\s+/)
+			.filter(Boolean);
 
-		condiciones.push(`
-      (
-        LOWER(n.nombre) LIKE ${parametro}
-        OR LOWER(COALESCE(n.descripcion, '')) LIKE ${parametro}
-        OR LOWER(COALESCE(n.zona, '')) LIKE ${parametro}
-        OR LOWER(COALESCE(n.municipio, '')) LIKE ${parametro}
-        OR LOWER(COALESCE(tn.nombre, '')) LIKE ${parametro}
-      )
-    `);
+		const condicionesPalabras = palabras.map((palabra) => {
+			parametros.push(`%${palabra}%`);
+			const parametro = `$${parametros.length}`;
+
+			return `
+			(
+				LOWER(n.nombre) LIKE ${parametro}
+				OR LOWER(COALESCE(n.descripcion, '')) LIKE ${parametro}
+				OR LOWER(COALESCE(n.zona, '')) LIKE ${parametro}
+				OR LOWER(COALESCE(n.municipio, '')) LIKE ${parametro}
+				OR LOWER(COALESCE(tn.nombre, '')) LIKE ${parametro}
+
+				OR EXISTS (
+					SELECT 1
+					FROM profesional_negocio pn_busqueda
+					INNER JOIN profesional p_busqueda
+						ON p_busqueda.id = pn_busqueda.profesional_id
+					INNER JOIN profesional_tipo_profesional ptp
+						ON ptp.profesional_id = p_busqueda.id
+					INNER JOIN tipo_profesional tp
+						ON tp.id = ptp.tipo_profesional_id
+					WHERE pn_busqueda.negocio_id = n.id
+						AND pn_busqueda.estado = 'HABILITADO'
+						AND p_busqueda.estado = 'ACTIVO'
+						AND p_busqueda.estado_funciones = 'HABILITADO'
+						AND tp.activo = TRUE
+						AND LOWER(tp.nombre) LIKE ${parametro}
+				)
+
+				OR EXISTS (
+					SELECT 1
+					FROM profesional_negocio pn_servicio
+					INNER JOIN profesional p_servicio
+						ON p_servicio.id = pn_servicio.profesional_id
+					INNER JOIN servicio s_busqueda
+						ON s_busqueda.profesional_id = p_servicio.id
+					WHERE pn_servicio.negocio_id = n.id
+						AND pn_servicio.estado = 'HABILITADO'
+						AND p_servicio.estado = 'ACTIVO'
+						AND p_servicio.estado_funciones = 'HABILITADO'
+						AND s_busqueda.estado = 'HABILITADO'
+						AND (
+							LOWER(s_busqueda.nombre) LIKE ${parametro}
+							OR LOWER(COALESCE(s_busqueda.descripcion, '')) LIKE ${parametro}
+						)
+				)
+			)
+		`;
+		});
+
+		condiciones.push(`(${condicionesPalabras.join(" AND ")})`);
 	}
-
+	console.log("FILTROS EN REPOSITORY:", filtros);
+console.log("SQL FILTROS:", condiciones);
+console.log("PARAMETROS SQL:", parametros);
 	return {
 		sql: condiciones.length ? `AND ${condiciones.join(" AND ")}` : "",
 		parametros,
@@ -654,8 +701,23 @@ const getServiciosConDescuentoPublico = async () => {
 	return resultado.rows;
 };
 
+// =====================================================
+// BÚSQUEDAS INDEPENDIENTES DEL MARKETPLACE
+// Reutilizan las consultas públicas existentes.
+// =====================================================
+
+const buscarNegociosPublicados = async (filtros = {}) => {
+	return getNegociosPublicados(filtros);
+};
+
+const buscarServiciosPublicados = async (filtros = {}) => {
+	return getServiciosPublicados(filtros);
+};
+
 module.exports = {
 	getNegociosPublicados,
 	getServiciosPublicados,
 	getServiciosConDescuentoPublico,
+	buscarNegociosPublicados,
+	buscarServiciosPublicados,
 };

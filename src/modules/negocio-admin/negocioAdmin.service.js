@@ -1,5 +1,5 @@
 const repository = require("./negocioAdmin.repository");
-
+const crypto = require("crypto");
 const {
 	validarId,
 	validarActualizacionNegocio,
@@ -278,6 +278,58 @@ async function obtenerEstadoHorario(negocioId) {
 	};
 }
 
+// ============================================================
+// GENERAR NUEVO CÓDIGO ÚNICO DE INVITACIÓN
+// ============================================================
+
+async function generarNuevoCodigo(usuarioId) {
+	const id = validarId(usuarioId, "usuario autenticado");
+
+	// Obtener el negocio del administrador autenticado
+	const negocio = await repository.getNegocioByUsuarioId(id);
+
+	if (!negocio) {
+		throw crearError(
+			"No se encontró un negocio asociado al usuario autenticado.",
+			404,
+		);
+	}
+
+	// Evitamos caracteres que se pueden confundir visualmente:
+	// O / 0 e I / 1
+	const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+	let codigo;
+	let intentos = 0;
+	const maxIntentos = 20;
+
+	do {
+		codigo = "PIA-";
+
+		for (let i = 0; i < 6; i++) {
+			codigo += caracteres[crypto.randomInt(0, caracteres.length)];
+		}
+
+		intentos++;
+
+		if (intentos >= maxIntentos) {
+			throw crearError(
+				"No se pudo generar un código único. Intenta nuevamente.",
+				500,
+			);
+		}
+	} while (await repository.existsCodigoNegocio(codigo));
+
+	// Actualizar únicamente el código del negocio
+	const actualizado = await repository.updateCodigoNegocio(negocio.id, codigo);
+
+	if (!actualizado) {
+		throw crearError("No se pudo actualizar el código de invitación.", 500);
+	}
+
+	return actualizado;
+}
+
 module.exports = {
 	obtenerMiNegocio,
 	actualizarMiNegocio,
@@ -285,4 +337,5 @@ module.exports = {
 	listarTiposNegocio,
 	actualizarImagenesNegocio,
 	obtenerEstadoHorario,
+	generarNuevoCodigo,
 };

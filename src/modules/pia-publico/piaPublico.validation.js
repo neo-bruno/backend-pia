@@ -38,18 +38,21 @@ const validarFiltrosTexto = (req, res) => {
 	const filtrosTexto = ["departamento", "municipio", "buscar"];
 
 	for (const campo of filtrosTexto) {
-		if (req.query[campo] !== undefined) {
-			if (
-				typeof req.query[campo] !== "string" ||
-				req.query[campo].trim().length > 150
-			) {
-				res.status(400).json({
-					ok: false,
-					mensaje: `El filtro ${campo} no es válido`,
-				});
+		const valor = req.query[campo];
 
-				return false;
-			}
+		if (valor === undefined) continue;
+
+		if (
+			typeof valor !== "string" ||
+			valor.trim() === "" ||
+			valor.trim().length > 150
+		) {
+			res.status(400).json({
+				ok: false,
+				mensaje: `El filtro ${campo} no es válido`,
+			});
+
+			return false;
 		}
 	}
 
@@ -172,8 +175,10 @@ const validarConsultaServicios = (req, res, next) => {
 		return;
 	}
 
-	const precioMin = req.query.precioMin !== undefined ? Number(req.query.precioMin) : undefined;
-	const precioMax = req.query.precioMax !== undefined ? Number(req.query.precioMax) : undefined;
+	const precioMin =
+		req.query.precioMin !== undefined ? Number(req.query.precioMin) : undefined;
+	const precioMax =
+		req.query.precioMax !== undefined ? Number(req.query.precioMax) : undefined;
 
 	if (
 		precioMin !== undefined &&

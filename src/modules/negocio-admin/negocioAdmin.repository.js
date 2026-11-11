@@ -265,6 +265,46 @@ async function getHorariosEstadoByNegocioId(negocioId) {
 	return rows;
 }
 
+// ============================================================
+// VERIFICAR SI YA EXISTE UN CÓDIGO DE NEGOCIO
+// ============================================================
+
+async function existsCodigoNegocio(codigo) {
+	const sql = `
+		SELECT 1
+		FROM negocio
+		WHERE codigo = $1
+		LIMIT 1
+	`;
+
+	const { rows } = await pool.query(sql, [codigo]);
+
+	return rows.length > 0;
+}
+
+// ============================================================
+// ACTUALIZAR CÓDIGO DE INVITACIÓN DEL NEGOCIO
+// ============================================================
+
+async function updateCodigoNegocio(negocioId, codigo) {
+	const sql = `
+		UPDATE negocio
+		SET
+			codigo = $1,
+			updated_at = NOW()
+		WHERE id = $2
+		RETURNING
+			id,
+			nombre,
+			codigo,
+			updated_at
+	`;
+
+	const { rows } = await pool.query(sql, [codigo, negocioId]);
+
+	return rows[0] || null;
+}
+
 module.exports = {
 	getNegocioByUsuarioId,
 	getTipoNegocioById,
@@ -275,4 +315,6 @@ module.exports = {
 	updateImagenesNegocio,
 
 	getHorariosEstadoByNegocioId,
+  existsCodigoNegocio,
+	updateCodigoNegocio,
 };

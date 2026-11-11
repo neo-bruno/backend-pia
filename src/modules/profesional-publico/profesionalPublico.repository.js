@@ -1,16 +1,16 @@
 const pool = require("../../database/pool");
 
 const slugify = (texto) => {
-  return texto
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+	return texto
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.trim()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
 };
 async function getNegocioByCodigo(codigo) {
-  const query = `
+	const query = `
     SELECT
       id,
       codigo,
@@ -34,17 +34,17 @@ async function getNegocioByCodigo(codigo) {
     LIMIT 1;
   `;
 
-  const { rows } = await pool.query(query, [codigo]);
+	const { rows } = await pool.query(query, [codigo]);
 
-  return rows[0] || null;
+	return rows[0] || null;
 }
 
 // =====================================================
 // NEGOCIO
 // =====================================================
 async function getNegocioById(client, negocioId) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       SELECT
         id,
         codigo,
@@ -54,18 +54,18 @@ async function getNegocioById(client, negocioId) {
       WHERE id = $1
       LIMIT 1
     `,
-    [negocioId],
-  );
+		[negocioId],
+	);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 // =====================================================
 // TIPO PROFESIONAL
 // =====================================================
 async function getTipoProfesionalById(client, id) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       SELECT
         id,
         nombre,
@@ -74,18 +74,18 @@ async function getTipoProfesionalById(client, id) {
       FROM tipo_profesional
       WHERE id = $1
     `,
-    [id],
-  );
+		[id],
+	);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 // =====================================================
 // ROL
 // =====================================================
 async function getRolAdmin(client) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       SELECT
         id,
         nombre
@@ -93,17 +93,17 @@ async function getRolAdmin(client) {
       WHERE UPPER(nombre) = 'ADMIN'
       LIMIT 1
     `,
-  );
+	);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 // =====================================================
 // MÉTODO DE PAGO QR
 // =====================================================
 async function getMetodoPagoQR(client) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       SELECT
         id,
         nombre,
@@ -114,17 +114,17 @@ async function getMetodoPagoQR(client) {
         AND estado = 'ACTIVO'
       LIMIT 1
     `,
-  );
+	);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 // =====================================================
 // GERENCIA
 // =====================================================
 async function getGerenciaActiva(client) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       SELECT
         id,
         gerente_id,
@@ -137,20 +137,20 @@ async function getGerenciaActiva(client) {
       ORDER BY id
       LIMIT 1
     `,
-  );
+	);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 // =====================================================
 // PERSONA
 // =====================================================
 async function createPersona(client, profesional) {
-  const nombreCompleto =
-    `${profesional.nombres} ${profesional.apellidos}`.trim();
+	const nombreCompleto =
+		`${profesional.nombres} ${profesional.apellidos}`.trim();
 
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO persona (
         nombre,
         telefono,
@@ -165,36 +165,36 @@ async function createPersona(client, profesional) {
         sexo,
         fecha_nacimiento
     `,
-    [
-      nombreCompleto,
-      profesional.telefono,
-      profesional.sexo,
-      profesional.fecha_nacimiento || null,
-    ],
-  );
+		[
+			nombreCompleto,
+			profesional.telefono,
+			profesional.sexo,
+			profesional.fecha_nacimiento || null,
+		],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
 // PROFESIONAL
 // =====================================================
 const existsSlugProfesional = async (client, slug) => {
-  const query = `
+	const query = `
     SELECT 1
     FROM profesional
     WHERE slug = $1
     LIMIT 1
   `;
 
-  const { rows } = await client.query(query, [slug]);
+	const { rows } = await client.query(query, [slug]);
 
-  return rows.length > 0;
+	return rows.length > 0;
 };
 
 async function createProfesional(client, personaId, slug) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO profesional (
           persona_id,
           slug,
@@ -209,10 +209,10 @@ async function createProfesional(client, personaId, slug) {
       )
       RETURNING id, persona_id, estado, estado_funciones
     `,
-    [personaId, slug],
-  );
+		[personaId, slug],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
@@ -220,8 +220,8 @@ async function createProfesional(client, personaId, slug) {
 // =====================================================
 
 async function createUsuario(client, personaId, rolId, telefono, password) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO usuario (
         persona_id,
         rol_id,
@@ -243,10 +243,10 @@ async function createUsuario(client, personaId, rolId, telefono, password) {
         telefono,
         estado
     `,
-    [personaId, rolId, telefono, password],
-  );
+		[personaId, rolId, telefono, password],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
@@ -254,8 +254,8 @@ async function createUsuario(client, personaId, rolId, telefono, password) {
 // =====================================================
 
 async function createProfesionalTipo(client, profesionalId, tipoProfesionalId) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO profesional_tipo_profesional (
         profesional_id,
         tipo_profesional_id
@@ -263,29 +263,29 @@ async function createProfesionalTipo(client, profesionalId, tipoProfesionalId) {
       VALUES ($1, $2)
       RETURNING *
     `,
-    [profesionalId, tipoProfesionalId],
-  );
+		[profesionalId, tipoProfesionalId],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 async function getTipoProfesionalByNombre(client, nombre) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
     SELECT *
     FROM tipo_profesional
     WHERE LOWER(nombre) = LOWER($1)
     LIMIT 1
     `,
-    [nombre],
-  );
+		[nombre],
+	);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 }
 
 async function createTipoProfesional(client, data) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
     INSERT INTO tipo_profesional (
       nombre,
       descripcion
@@ -293,10 +293,10 @@ async function createTipoProfesional(client, data) {
     VALUES ($1, $2)
     RETURNING *
     `,
-    [data.nombre, data.descripcion || null],
-  );
+		[data.nombre, data.descripcion || null],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
@@ -304,8 +304,8 @@ async function createTipoProfesional(client, data) {
 // =====================================================
 
 async function createProfesionalNegocio(client, negocioId, profesionalId) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO profesional_negocio (
         negocio_id,
         profesional_id,
@@ -326,10 +326,10 @@ async function createProfesionalNegocio(client, negocioId, profesionalId) {
         estado,
         fecha_creacion
     `,
-    [negocioId, profesionalId],
-  );
+		[negocioId, profesionalId],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
@@ -337,8 +337,8 @@ async function createProfesionalNegocio(client, negocioId, profesionalId) {
 // =====================================================
 
 async function createMembresia(client, profesionalNegocioId, membresia) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO membresia (
         profesional_negocio_id,
         fecha_inicio,
@@ -357,15 +357,15 @@ async function createMembresia(client, profesionalNegocioId, membresia) {
       )
       RETURNING *
     `,
-    [
-      profesionalNegocioId,
-      membresia.fecha_inicio,
-      membresia.fecha_fin,
-      membresia.monto,
-    ],
-  );
+		[
+			profesionalNegocioId,
+			membresia.fecha_inicio,
+			membresia.fecha_fin,
+			membresia.monto,
+		],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
@@ -373,10 +373,10 @@ async function createMembresia(client, profesionalNegocioId, membresia) {
 // =====================================================
 
 async function createArchivo(client, file) {
-  const url = `/uploads/profesionales/${file.filename}`;
+	const url = `/uploads/profesionales/${file.filename}`;
 
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO archivo (
         nombre,
         url,
@@ -387,10 +387,10 @@ async function createArchivo(client, file) {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `,
-    [file.originalname, url, "COMPROBANTE", file.mimetype, file.size],
-  );
+		[file.originalname, url, "COMPROBANTE", file.mimetype, file.size],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
@@ -398,29 +398,29 @@ async function createArchivo(client, file) {
 // =====================================================
 
 function generarNumeroPago() {
-  const fecha = new Date();
+	const fecha = new Date();
 
-  const parteFecha =
-    fecha.getFullYear().toString() +
-    String(fecha.getMonth() + 1).padStart(2, "0") +
-    String(fecha.getDate()).padStart(2, "0");
+	const parteFecha =
+		fecha.getFullYear().toString() +
+		String(fecha.getMonth() + 1).padStart(2, "0") +
+		String(fecha.getDate()).padStart(2, "0");
 
-  const parteAleatoria = Math.floor(100000 + Math.random() * 900000);
+	const parteAleatoria = Math.floor(100000 + Math.random() * 900000);
 
-  return `MEM-${parteFecha}-${parteAleatoria}`;
+	return `MEM-${parteFecha}-${parteAleatoria}`;
 }
 
 async function createPago(
-  client,
-  metodoPagoId,
-  profesionalId,
-  membresiaId,
-  monto,
+	client,
+	metodoPagoId,
+	profesionalId,
+	membresiaId,
+	monto,
 ) {
-  const numero = generarNumeroPago();
+	const numero = generarNumeroPago();
 
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO pago (
         metodo_pago_id,
         profesional_id,
@@ -443,10 +443,10 @@ async function createPago(
       )
       RETURNING *
     `,
-    [metodoPagoId, profesionalId, membresiaId, numero, monto],
-  );
+		[metodoPagoId, profesionalId, membresiaId, numero, monto],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 // =====================================================
@@ -454,8 +454,8 @@ async function createPago(
 // =====================================================
 
 async function createComprobante(client, pagoId, archivoId, gerenciaId) {
-  const result = await client.query(
-    `
+	const result = await client.query(
+		`
       INSERT INTO comprobante (
         pago_id,
         archivo_id,
@@ -470,14 +470,14 @@ async function createComprobante(client, pagoId, archivoId, gerenciaId) {
       )
       RETURNING *
     `,
-    [pagoId, archivoId, gerenciaId],
-  );
+		[pagoId, archivoId, gerenciaId],
+	);
 
-  return result.rows[0];
+	return result.rows[0];
 }
 
 const obtenerProfesional = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
       p.id,
       p.persona_id,
@@ -507,16 +507,16 @@ const obtenerProfesional = async (client, profesionalId) => {
     FOR UPDATE
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows[0] || null;
+	return rows[0] || null;
 };
 
 // =====================================================
 // ACTUALIZAR PERSONA
 // =====================================================
 const actualizarPersona = async (client, personaId, nombre) => {
-  const query = `
+	const query = `
     UPDATE persona
     SET
       nombre = $1,
@@ -527,81 +527,81 @@ const actualizarPersona = async (client, personaId, nombre) => {
     RETURNING id, nombre, telefono;
   `;
 
-  const { rows } = await client.query(query, [nombre, personaId]);
+	const { rows } = await client.query(query, [nombre, personaId]);
 
-  return rows[0];
+	return rows[0];
 };
 
 // =====================================================
 // ACTUALIZAR PROFESIONAL
 // =====================================================
 const actualizarProfesional = async (client, profesionalId, datos) => {
-  const campos = [];
-  const valores = [];
+	const campos = [];
+	const valores = [];
 
-  let posicion = 1;
+	let posicion = 1;
 
-  // ===================================================
-  // DATOS TEXTUALES
-  // ===================================================
+	// ===================================================
+	// DATOS TEXTUALES
+	// ===================================================
 
-  campos.push(`fecha_trabajo = $${posicion++}`);
+	campos.push(`fecha_trabajo = $${posicion++}`);
 
-  valores.push(datos.fecha_trabajo);
+	valores.push(datos.fecha_trabajo);
 
-  campos.push(`descripcion = $${posicion++}`);
+	campos.push(`descripcion = $${posicion++}`);
 
-  valores.push(datos.descripcion);
+	valores.push(datos.descripcion);
 
-  campos.push(`lema = $${posicion++}`);
+	campos.push(`lema = $${posicion++}`);
 
-  valores.push(datos.lema);
+	valores.push(datos.lema);
 
-  // ===================================================
-  // FOTO
-  // ===================================================
+	// ===================================================
+	// FOTO
+	// ===================================================
 
-  if (datos.eliminar_foto) {
-    campos.push(`foto = NULL`);
-  } else if (datos.foto) {
-    campos.push(`foto = $${posicion++}`);
+	if (datos.eliminar_foto) {
+		campos.push(`foto = NULL`);
+	} else if (datos.foto) {
+		campos.push(`foto = $${posicion++}`);
 
-    valores.push(`/uploads/profesionales/${datos.foto.filename}`);
-  }
+		valores.push(`/uploads/profesionales/${datos.foto.filename}`);
+	}
 
-  // ===================================================
-  // PORTADA
-  // ===================================================
+	// ===================================================
+	// PORTADA
+	// ===================================================
 
-  if (datos.eliminar_portada) {
-    campos.push(`portada = NULL`);
-  } else if (datos.portada) {
-    campos.push(`portada = $${posicion++}`);
+	if (datos.eliminar_portada) {
+		campos.push(`portada = NULL`);
+	} else if (datos.portada) {
+		campos.push(`portada = $${posicion++}`);
 
-    valores.push(`/uploads/profesionales/${datos.portada.filename}`);
-  }
+		valores.push(`/uploads/profesionales/${datos.portada.filename}`);
+	}
 
-  // ===================================================
-  // QR
-  // ===================================================
+	// ===================================================
+	// QR
+	// ===================================================
 
-  if (datos.eliminar_qr) {
-    campos.push(`pago_qr = NULL`);
-  } else if (datos.qr) {
-    campos.push(`pago_qr = $${posicion++}`);
+	if (datos.eliminar_qr) {
+		campos.push(`pago_qr = NULL`);
+	} else if (datos.qr) {
+		campos.push(`pago_qr = $${posicion++}`);
 
-    valores.push(`/uploads/profesionales/${datos.qr.filename}`);
-  }
+		valores.push(`/uploads/profesionales/${datos.qr.filename}`);
+	}
 
-  // ===================================================
-  // UPDATED
-  // ===================================================
+	// ===================================================
+	// UPDATED
+	// ===================================================
 
-  campos.push(`updated_at = CURRENT_TIMESTAMP`);
+	campos.push(`updated_at = CURRENT_TIMESTAMP`);
 
-  valores.push(profesionalId);
+	valores.push(profesionalId);
 
-  const query = `
+	const query = `
     UPDATE profesional
     SET
       ${campos.join(",\n      ")}
@@ -611,20 +611,20 @@ const actualizarProfesional = async (client, profesionalId, datos) => {
     RETURNING *;
   `;
 
-  const { rows } = await client.query(query, valores);
+	const { rows } = await client.query(query, valores);
 
-  return rows[0];
+	return rows[0];
 };
 
 // =====================================================
 // VERIFICAR TIPOS
 // =====================================================
 const obtenerTiposValidos = async (client, tipos) => {
-  if (!tipos.length) {
-    return [];
-  }
+	if (!tipos.length) {
+		return [];
+	}
 
-  const query = `
+	const query = `
     SELECT
       id,
       nombre,
@@ -638,48 +638,48 @@ const obtenerTiposValidos = async (client, tipos) => {
     ORDER BY id;
   `;
 
-  const { rows } = await client.query(query, [tipos]);
+	const { rows } = await client.query(query, [tipos]);
 
-  return rows;
+	return rows;
 };
 
 // =====================================================
 // ELIMINAR TIPOS ACTUALES
 // =====================================================
 const eliminarTipos = async (client, profesionalId) => {
-  await client.query(
-    `
+	await client.query(
+		`
       DELETE FROM profesional_tipo_profesional
 
       WHERE profesional_id = $1
     `,
-    [profesionalId],
-  );
+		[profesionalId],
+	);
 };
 
 // =====================================================
 // INSERTAR TIPOS
 // =====================================================
 const insertarTipos = async (client, profesionalId, tipos) => {
-  for (const tipoId of tipos) {
-    await client.query(
-      `
+	for (const tipoId of tipos) {
+		await client.query(
+			`
         INSERT INTO profesional_tipo_profesional (
           profesional_id,
           tipo_profesional_id
         )
         VALUES ($1, $2)
       `,
-      [profesionalId, tipoId],
-    );
-  }
+			[profesionalId, tipoId],
+		);
+	}
 };
 
 // =====================================================
 // OBTENER TIPOS DEL PROFESIONAL
 // =====================================================
 const obtenerTiposProfesional = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
       tp.id,
       tp.nombre,
@@ -695,13 +695,13 @@ const obtenerTiposProfesional = async (client, profesionalId) => {
     ORDER BY ptp.id;
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows;
+	return rows;
 };
 
 const getDataProfessional = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
       p.id,
       p.persona_id,
@@ -805,14 +805,14 @@ const getDataProfessional = async (client, profesionalId) => {
     LIMIT 1
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows[0] || null;
+	return rows[0] || null;
 };
 
 // profesional.repository.js
 const getProfessionals = async () => {
-  const query = `
+	const query = `
     SELECT
       p.id,
       p.persona_id,
@@ -973,9 +973,305 @@ const getProfessionals = async () => {
       p.created_at DESC;
   `;
 
-  const { rows } = await pool.query(query);
+	const { rows } = await pool.query(query);
 
-  return rows;
+	return rows;
+};
+
+// =====================================================
+// BÚSQUEDA PÚBLICA DE PROFESIONALES
+// Método independiente: no modifica getProfessionals()
+// =====================================================
+const getProfessionalsBusqueda = async (filtros = {}) => {
+	const condiciones = [];
+	const parametros = [];
+
+	const agregar = (condicion, valor) => {
+		parametros.push(valor);
+		condiciones.push(condicion.replace("?", `$${parametros.length}`));
+	};
+
+	const pagina = Math.max(1, Number.parseInt(filtros.pagina, 10) || 1);
+	const limite = Math.min(
+		50,
+		Math.max(1, Number.parseInt(filtros.limite, 10) || 12),
+	);
+	const offset = (pagina - 1) * limite;
+
+	if (filtros.departamento?.trim()) {
+		agregar(
+			"EXISTS (SELECT 1 FROM profesional_negocio pn INNER JOIN negocio n ON n.id = pn.negocio_id WHERE pn.profesional_id = p.id AND pn.estado = 'HABILITADO' AND n.estado = 'HABILITADO' AND LOWER(n.departamento) = ?)",
+			filtros.departamento.trim().toLowerCase(),
+		);
+	}
+
+	if (filtros.municipio?.trim()) {
+		const municipio = filtros.municipio.trim().toLowerCase();
+		const municipiosEquivalentes =
+			municipio === "cochabamba" || municipio === "cercado"
+				? ["cochabamba", "cercado"]
+				: [municipio];
+
+		parametros.push(municipiosEquivalentes);
+		condiciones.push(`
+      EXISTS (
+        SELECT 1
+        FROM profesional_negocio pn
+        INNER JOIN negocio n ON n.id = pn.negocio_id
+        WHERE pn.profesional_id = p.id
+          AND pn.estado = 'HABILITADO'
+          AND n.estado = 'HABILITADO'
+          AND LOWER(n.municipio) = ANY($${parametros.length}::text[])
+      )
+    `);
+	}
+
+	if (filtros.tipoProfesionalId) {
+		agregar(
+			`EXISTS (
+        SELECT 1
+        FROM profesional_tipo_profesional ptp
+        INNER JOIN tipo_profesional tp ON tp.id = ptp.tipo_profesional_id
+        WHERE ptp.profesional_id = p.id
+          AND tp.activo = TRUE
+          AND tp.id = ?
+      )`,
+			Number(filtros.tipoProfesionalId),
+		);
+	}
+
+	if (filtros.tipoNegocioId) {
+		agregar(
+			`EXISTS (
+        SELECT 1
+        FROM profesional_negocio pn
+        INNER JOIN negocio n ON n.id = pn.negocio_id
+        WHERE pn.profesional_id = p.id
+          AND pn.estado = 'HABILITADO'
+          AND n.estado = 'HABILITADO'
+          AND n.tipo_negocio_id = ?
+      )`,
+			Number(filtros.tipoNegocioId),
+		);
+	}
+
+	if (filtros.precioMin !== undefined && filtros.precioMin !== "") {
+		agregar(
+			`EXISTS (
+        SELECT 1 FROM servicio s
+        WHERE s.profesional_id = p.id
+          AND s.estado = 'HABILITADO'
+          AND s.precio >= ?
+      )`,
+			Number(filtros.precioMin),
+		);
+	}
+
+	if (filtros.precioMax !== undefined && filtros.precioMax !== "") {
+		agregar(
+			`EXISTS (
+        SELECT 1 FROM servicio s
+        WHERE s.profesional_id = p.id
+          AND s.estado = 'HABILITADO'
+          AND s.precio <= ?
+      )`,
+			Number(filtros.precioMax),
+		);
+	}
+
+	if (filtros.buscar?.trim()) {
+		const palabras = filtros.buscar.trim().toLowerCase().split(/\s+/);
+
+		for (const palabra of palabras) {
+			parametros.push(`%${palabra}%`);
+			const pBuscar = `$${parametros.length}`;
+
+			condiciones.push(`
+        (
+          LOWER(per.nombre) LIKE ${pBuscar}
+          OR LOWER(COALESCE(p.descripcion, '')) LIKE ${pBuscar}
+          OR LOWER(COALESCE(p.lema, '')) LIKE ${pBuscar}
+
+          OR EXISTS (
+            SELECT 1
+            FROM profesional_tipo_profesional ptp
+            INNER JOIN tipo_profesional tp
+              ON tp.id = ptp.tipo_profesional_id
+            WHERE ptp.profesional_id = p.id
+              AND tp.activo = TRUE
+              AND LOWER(tp.nombre) LIKE ${pBuscar}
+          )
+
+          OR EXISTS (
+            SELECT 1
+            FROM profesional_negocio pn
+            INNER JOIN negocio n ON n.id = pn.negocio_id
+            INNER JOIN tipo_negocio tn ON tn.id = n.tipo_negocio_id
+            WHERE pn.profesional_id = p.id
+              AND pn.estado = 'HABILITADO'
+              AND n.estado = 'HABILITADO'
+              AND (
+                LOWER(n.nombre) LIKE ${pBuscar}
+                OR LOWER(tn.nombre) LIKE ${pBuscar}
+              )
+          )
+
+          OR EXISTS (
+            SELECT 1
+            FROM servicio s
+            WHERE s.profesional_id = p.id
+              AND s.estado = 'HABILITADO'
+              AND (
+                LOWER(s.nombre) LIKE ${pBuscar}
+                OR LOWER(COALESCE(s.descripcion, '')) LIKE ${pBuscar}
+              )
+          )
+        )
+      `);
+		}
+	}
+
+	const whereFiltros = condiciones.length
+		? `AND ${condiciones.join(" AND ")}`
+		: "";
+
+	const sqlBase = `
+    FROM profesional p
+    INNER JOIN persona per ON per.id = p.persona_id
+    WHERE p.estado = 'ACTIVO'
+      AND p.estado_funciones = 'HABILITADO'
+      ${whereFiltros}
+  `;
+
+	const sqlDatos = `
+    SELECT
+      p.id,
+      p.persona_id,
+      p.slug,
+      p.foto,
+      p.portada,
+      p.fecha_trabajo,
+      p.descripcion,
+      p.lema,
+      p.pago_qr,
+      p.estado,
+      p.estado_funciones,
+      p.created_at,
+      p.updated_at,
+
+      per.nombre,
+      per.telefono,
+      per.sexo,
+      per.fecha_nacimiento,
+
+      COALESCE((
+        SELECT json_agg(
+          json_build_object(
+            'id', tp.id,
+            'nombre', tp.nombre,
+            'descripcion', tp.descripcion
+          )
+          ORDER BY tp.nombre
+        )
+        FROM profesional_tipo_profesional ptp
+        INNER JOIN tipo_profesional tp
+          ON tp.id = ptp.tipo_profesional_id
+        WHERE ptp.profesional_id = p.id
+          AND tp.activo = TRUE
+      ), '[]'::json) AS tipos_profesional,
+
+      COALESCE((
+        SELECT json_agg(
+          json_build_object(
+            'id', s.id,
+            'nombre', s.nombre,
+            'descripcion', s.descripcion,
+            'duracion', s.duracion,
+            'precio', s.precio,
+            'estado', s.estado
+          )
+          ORDER BY s.nombre
+        )
+        FROM servicio s
+        WHERE s.profesional_id = p.id
+          AND s.estado = 'HABILITADO'
+      ), '[]'::json) AS servicios,
+
+      (
+        SELECT MIN(s.precio)
+        FROM servicio s
+        WHERE s.profesional_id = p.id
+          AND s.estado = 'HABILITADO'
+      ) AS precio_minimo,
+
+      COALESCE((
+        SELECT ROUND(AVG(c.puntaje), 1)
+        FROM calificacion c
+        WHERE c.profesional_id = p.id
+          AND c.estado = 'ACTIVA'
+      ), 0) AS rating,
+
+      (
+        SELECT COUNT(*)
+        FROM calificacion c
+        WHERE c.profesional_id = p.id
+          AND c.estado = 'ACTIVA'
+      ) AS resenas,
+
+      (
+        SELECT rd.posicion
+        FROM ranking_detalle rd
+        INNER JOIN ranking r ON r.id = rd.ranking_id
+        WHERE rd.profesional_id = p.id
+          AND r.estado = 'ACTIVO'
+        ORDER BY rd.posicion ASC, rd.id DESC
+        LIMIT 1
+      ) AS posicion,
+
+      COALESCE((
+        SELECT json_agg(
+          json_build_object(
+            'id', n.id,
+            'nombre', n.nombre,
+            'slug', n.slug
+          )
+          ORDER BY n.nombre
+        )
+        FROM profesional_negocio pn
+        INNER JOIN negocio n ON n.id = pn.negocio_id
+        WHERE pn.profesional_id = p.id
+          AND pn.estado = 'HABILITADO'
+          AND n.estado = 'HABILITADO'
+      ), '[]'::json) AS negocios
+
+    ${sqlBase}
+
+    ORDER BY posicion ASC NULLS LAST, p.created_at DESC
+    LIMIT $${parametros.length + 1}
+    OFFSET $${parametros.length + 2}
+  `;
+
+	const sqlTotal = `
+    SELECT COUNT(*)::INTEGER AS total
+    ${sqlBase}
+  `;
+
+	const [resultadoDatos, resultadoTotal] = await Promise.all([
+		pool.query(sqlDatos, [...parametros, limite, offset]),
+		pool.query(sqlTotal, parametros),
+	]);
+
+	const total = resultadoTotal.rows[0]?.total || 0;
+
+	return {
+		datos: resultadoDatos.rows,
+		paginacion: {
+			pagina,
+			limite,
+			total,
+			totalPaginas: Math.ceil(total / limite),
+		},
+	};
 };
 
 // =====================================================
@@ -983,7 +1279,7 @@ const getProfessionals = async () => {
 // =====================================================
 
 async function getProfessionalBySlug(slug) {
-  const query = `
+	const query = `
     SELECT
       -- =====================================================
       -- PROFESIONAL
@@ -1206,95 +1502,86 @@ async function getProfessionalBySlug(slug) {
     LIMIT 1;
   `;
 
-  const result = await pool.query(query, [slug]);
+	const result = await pool.query(query, [slug]);
 
-  if (!result.rows.length) {
-    return null;
-  }
+	if (!result.rows.length) {
+		return null;
+	}
 
-  const row = result.rows[0];
+	const row = result.rows[0];
 
-  return {
-    // =====================================================
-    // PROFESIONAL
-    // =====================================================
+	return {
+		// =====================================================
+		// PROFESIONAL
+		// =====================================================
 
-    profesional: {
-      id: row.id,
-      persona_id: row.persona_id,
-      nombre: row.nombre,
-      slug: row.slug,
+		profesional: {
+			id: row.id,
+			persona_id: row.persona_id,
+			nombre: row.nombre,
+			slug: row.slug,
 
-      foto: row.foto,
-      portada: row.portada,
+			foto: row.foto,
+			portada: row.portada,
 
-      fecha_trabajo: row.fecha_trabajo,
-      descripcion: row.descripcion,
-      lema: row.lema,
-      pago_qr: row.pago_qr,
+			fecha_trabajo: row.fecha_trabajo,
+			descripcion: row.descripcion,
+			lema: row.lema,
+			pago_qr: row.pago_qr,
 
-      estado: row.estado,
-      estado_funciones: row.estado_funciones,
+			estado: row.estado,
+			estado_funciones: row.estado_funciones,
 
-      anios_experiencia: Number(
-        row.anios_experiencia || 0
-      ),
+			anios_experiencia: Number(row.anios_experiencia || 0),
 
-      calificacion: Number(
-        row.calificacion || 0
-      ),
+			calificacion: Number(row.calificacion || 0),
 
-      cantidad_calificaciones: Number(
-        row.cantidad_calificaciones || 0
-      ),
+			cantidad_calificaciones: Number(row.cantidad_calificaciones || 0),
 
-      clientes_atendidos: Number(
-        row.clientes_atendidos || 0
-      ),
+			clientes_atendidos: Number(row.clientes_atendidos || 0),
 
-      tipos: row.tipos || [],
-    },
+			tipos: row.tipos || [],
+		},
 
-    // =====================================================
-    // NEGOCIO
-    // =====================================================
+		// =====================================================
+		// NEGOCIO
+		// =====================================================
 
-    negocio: row.negocio_id
-      ? {
-          id: row.negocio_id,
-          nombre: row.negocio_nombre,
-          slug: row.negocio_slug,
-          telefono: row.negocio_telefono,
-          departamento: row.departamento,
-          municipio: row.municipio,
-          zona: row.zona,
-          direccion: row.direccion,
-          latitud: row.latitud,
-          longitud: row.longitud,
-          logo: row.negocio_logo,
-        }
-      : null,
+		negocio: row.negocio_id
+			? {
+					id: row.negocio_id,
+					nombre: row.negocio_nombre,
+					slug: row.negocio_slug,
+					telefono: row.negocio_telefono,
+					departamento: row.departamento,
+					municipio: row.municipio,
+					zona: row.zona,
+					direccion: row.direccion,
+					latitud: row.latitud,
+					longitud: row.longitud,
+					logo: row.negocio_logo,
+				}
+			: null,
 
-    // =====================================================
-    // SERVICIOS
-    // =====================================================
+		// =====================================================
+		// SERVICIOS
+		// =====================================================
 
-    servicios: row.servicios || [],
+		servicios: row.servicios || [],
 
-    // =====================================================
-    // GALERÍA
-    // =====================================================
+		// =====================================================
+		// GALERÍA
+		// =====================================================
 
-    galeria: row.galeria || [],
-  };
+		galeria: row.galeria || [],
+	};
 }
-
 
 // =====================================================
 // RESEÑAS DE UN PROFESIONAL
 // =====================================================
 async function getResumenResenasProfesional(profesionalId) {
-  const query = `
+	const query = `
     SELECT
       COALESCE(
         ROUND(AVG(c.puntaje), 1),
@@ -1342,16 +1629,16 @@ async function getResumenResenasProfesional(profesionalId) {
       AND c.estado = 'ACTIVA';
   `;
 
-  const { rows } = await pool.query(query, [profesionalId]);
+	const { rows } = await pool.query(query, [profesionalId]);
 
-  return rows[0];
+	return rows[0];
 }
 
 // =====================================================
 // LISTAR RESEÑAS DE UN PROFESIONAL
 // =====================================================
 async function getResenasProfesional(profesionalId) {
-  const query = `
+	const query = `
     SELECT
       c.id,
       c.puntaje,
@@ -1391,35 +1678,36 @@ async function getResenasProfesional(profesionalId) {
       c.id DESC;
   `;
 
-  const { rows } = await pool.query(query, [profesionalId]);
+	const { rows } = await pool.query(query, [profesionalId]);
 
-  return rows;
+	return rows;
 }
 
-
 module.exports = {
-  getNegocioByCodigo,
-  getNegocioById,
-  getTipoProfesionalById,
-  getTipoProfesionalByNombre,
-  createTipoProfesional,
-  getRolAdmin,
-  getMetodoPagoQR,
-  getGerenciaActiva,
-  createPersona,
-  slugify,
-  existsSlugProfesional,
-  createProfesional,
-  createUsuario,
-  createProfesionalTipo,
-  createProfesionalNegocio,
-  createMembresia,
-  createArchivo,
-  createPago,
-  createComprobante,
-  getProfessionalBySlug,
-  getProfessionals,  
+	getNegocioByCodigo,
+	getNegocioById,
+	getTipoProfesionalById,
+	getTipoProfesionalByNombre,
+	createTipoProfesional,
+	getRolAdmin,
+	getMetodoPagoQR,
+	getGerenciaActiva,
+	createPersona,
+	slugify,
+	existsSlugProfesional,
+	createProfesional,
+	createUsuario,
+	createProfesionalTipo,
+	createProfesionalNegocio,
+	createMembresia,
+	createArchivo,
+	createPago,
+	createComprobante,
+	getProfessionalBySlug,
+	getProfessionals,
 
-  getResumenResenasProfesional,
-  getResenasProfesional,
+	getResumenResenasProfesional,
+	getResenasProfesional,
+
+	getProfessionalsBusqueda,
 };

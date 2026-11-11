@@ -34,6 +34,33 @@ const getProfessionals = async () => {
 };
 
 // =====================================================
+// BÚSQUEDA PÚBLICA DE PROFESIONALES
+// =====================================================
+const buscarProfessionals = async (filtros = {}) => {
+	const resultado = await repository.getProfessionalsBusqueda(filtros);
+
+	const datos = resultado.datos.map((profesional) => ({
+		...profesional,
+		imagen: profesional.foto,
+		profesion:
+			profesional.tipos_profesional?.[0]?.nombre || "Profesional de belleza",
+		rating: Number(profesional.rating || 0).toFixed(1),
+		reseñas: Number(profesional.resenas || 0),
+		precio:
+			profesional.precio_minimo !== null &&
+			profesional.precio_minimo !== undefined
+				? `Bs. ${Number(profesional.precio_minimo).toFixed(0)}`
+				: "Consultar",
+		favorito: false,
+	}));
+
+	return {
+		datos,
+		paginacion: resultado.paginacion,
+	};
+};
+
+// =====================================================
 // OBTENER PROFESIONAL POR SLUG
 // =====================================================
 async function getProfessionalBySlug(slug) {
@@ -378,4 +405,5 @@ module.exports = {
 	saveProfessional,
 
 	getResenasProfesional,
+	buscarProfessionals,
 };

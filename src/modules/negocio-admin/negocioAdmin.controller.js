@@ -127,6 +127,24 @@ const obtenerEstadoHorario = async (req, res, next) => {
 	}
 };
 
+// ============================================================
+// GENERAR NUEVO CÓDIGO DE INVITACIÓN DEL NEGOCIO
+// ============================================================
+
+async function generarNuevoCodigo(req, res, next) {
+	try {
+		const data = await service.generarNuevoCodigo(obtenerUsuarioId(req));
+
+		return res.status(200).json({
+			ok: true,
+			message: "El código de invitación se generó correctamente.",
+			data,
+		});
+	} catch (error) {
+		next(error);
+	}
+}
+
 module.exports = {
 	obtenerMiNegocio,
 	actualizarMiNegocio,
@@ -134,4 +152,5 @@ module.exports = {
 	listarTiposNegocio,
 	actualizarImagenesNegocio,
 	obtenerEstadoHorario,
+	generarNuevoCodigo
 };
