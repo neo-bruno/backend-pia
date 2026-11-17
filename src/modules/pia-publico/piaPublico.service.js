@@ -21,8 +21,15 @@ const getServicios = async (filtros = {}) => {
 	return repository.getServiciosPublicados({
 		pagina: filtros.pagina,
 		limite: filtros.limite,
+
+		// Prioridad geográfica: no excluye otros departamentos.
+		departamentoPrioritario:
+			filtros.departamentoPrioritario?.trim() || undefined,
+
+		// Filtros exactos, solamente cuando se soliciten.
 		departamento: filtros.departamento?.trim() || undefined,
 		municipio: filtros.municipio?.trim() || undefined,
+
 		tipoNegocioId: filtros.tipoNegocioId,
 		negocioId: filtros.negocioId,
 		profesionalId: filtros.profesionalId,
@@ -43,7 +50,6 @@ const getServiciosConDescuentoPublico = async () => {
 // BÚSQUEDA INDEPENDIENTE DE NEGOCIOS
 // =====================================================
 const buscarNegocios = async (filtros = {}) => {
-	console.log("FILTROS EN SERVICE:", filtros);
 	return repository.buscarNegociosPublicados({
 		pagina: filtros.pagina,
 		limite: filtros.limite,
@@ -61,8 +67,14 @@ const buscarServicios = async (filtros = {}) => {
 	return repository.buscarServiciosPublicados({
 		pagina: filtros.pagina,
 		limite: filtros.limite,
+
+		// Mantener la misma prioridad que el listado público.
+		departamentoPrioritario:
+			filtros.departamentoPrioritario?.trim() || undefined,
+
 		departamento: filtros.departamento?.trim() || undefined,
 		municipio: filtros.municipio?.trim() || undefined,
+
 		tipoNegocioId: filtros.tipoNegocioId,
 		negocioId: filtros.negocioId,
 		profesionalId: filtros.profesionalId,
@@ -72,10 +84,19 @@ const buscarServicios = async (filtros = {}) => {
 	});
 };
 
+// =====================================================
+// NEGOCIOS PÚBLICOS PARA EL MAPA
+// Sin paginación
+// =====================================================
+const getNegociosParaMapa = async () => {
+	return repository.getNegociosParaMapa();
+};
+
 module.exports = {
 	getNegocios,
 	getServicios,
 	getServiciosConDescuentoPublico,
 	buscarNegocios,
 	buscarServicios,
+	getNegociosParaMapa,
 };

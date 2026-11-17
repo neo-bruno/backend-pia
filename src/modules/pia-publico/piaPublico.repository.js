@@ -91,9 +91,6 @@ const construirFiltrosNegocios = (filtros = {}) => {
 
 		condiciones.push(`(${condicionesPalabras.join(" AND ")})`);
 	}
-	console.log("FILTROS EN REPOSITORY:", filtros);
-console.log("SQL FILTROS:", condiciones);
-console.log("PARAMETROS SQL:", parametros);
 	return {
 		sql: condiciones.length ? `AND ${condiciones.join(" AND ")}` : "",
 		parametros,
@@ -315,44 +312,212 @@ const construirFiltrosServicios = (filtros = {}) => {
 	}
 
 	// -------------------------------------------------
-	// BÚSQUEDA FLEXIBLE
-	// Cada palabra debe coincidir con algún campo.
-	// Las palabras pueden aparecer en campos diferentes.
+	// BÚSQUEDA INTELIGENTE POR INTENCIÓN
 	// -------------------------------------------------
 
 	if (filtros.buscar?.trim()) {
-		const palabras = filtros.buscar
-			.trim()
-			.toLowerCase()
-			.split(/\s+/)
-			.filter(Boolean);
+		const normalizarPalabra = (texto) =>
+			texto
+				.toLowerCase()
+				.normalize("NFD")
+				.replace(/[\u0300-\u036f]/g, "");
 
-		const camposBusqueda = [
-			"LOWER(COALESCE(s.nombre, ''))",
-			"LOWER(COALESCE(s.descripcion, ''))",
-			"LOWER(COALESCE(per.nombre, ''))",
-			"LOWER(COALESCE(n.nombre, ''))",
-			"LOWER(COALESCE(n.municipio, ''))",
-			"LOWER(COALESCE(n.zona, ''))",
-			"LOWER(COALESCE(n.departamento, ''))",
-			"LOWER(COALESCE(tn.nombre, ''))",
+		const palabrasIgnoradas = new Set([
+			"quiero",
+			"quisiera",
+			"necesito",
+			"busco",
+			"buscar",
+			"un",
+			"una",
+			"unos",
+			"unas",
+			"el",
+			"la",
+			"los",
+			"las",
+			"de",
+			"del",
+			"al",
+			"a",
+			"mi",
+			"mis",
+			"para",
+			"por",
+			"con",
+			"en",
+			"me",
+			"se",
+			"que",
+			"como",
+			"hacer",
+			"hacerme",
+			"hacerlo",
+			"agregar",
+			"poner",
+			"darme",
+			"cambiar",
+			"tener",
+			"nuevo",
+			"nueva",
+		]);
+
+		// Familias semánticas: cada familia representa una intención.
+		const familias = {
+			color: [
+				"color",
+				"colores",
+				"coloracion",
+				"colorizar",
+				"tinte",
+				"tintes",
+				"tenido",
+				"tenir",
+				"tenirme",
+				"tenirse",
+				"tenida",
+				"pintar",
+				"pintado",
+				"pintura",
+				"mecha",
+				"mechas",
+				"balayage",
+				"iluminacion",
+				"decoloracion",
+				"colorido",
+				"colorida",
+				"colorear",
+				"coloreado",
+				"coloreada",
+				"tinturado",
+				"tinturada",
+				"tenido",
+				"tenir",
+				"tenirlo",
+				"tenirme",
+			],
+
+			tono: ["tono", "tonos", "matiz", "matices"],
+
+			aclarado: [
+				"aclarar",
+				"aclarado",
+				"aclaracion",
+				"iluminacion",
+				"reflejos",
+				"rayitos",
+			],
+
+			corte: [
+				"corte",
+				"cortar",
+				"cortado",
+				"cortarme",
+				"recorte",
+				"despuntar",
+				"despunte",
+				"puntas",
+			],
+
+			manicura: [
+				"manicura",
+				"manicure",
+				"unas",
+				"pintado",
+				"pintar",
+				"pintura",
+				"esmalte",
+				"esmaltado",
+				"esmaltar",
+				"decoracion",
+				"diseno",
+				"nail art",
+			],
+
+			pedicura: ["pedicura", "pedicure", "pies"],
+
+			barberia: ["barba", "barbero", "barberia", "afeitado", "afeitar"],
+
+			cabello: ["cabello", "cabellos", "pelo", "capilar", "capilares"],
+
+			pestanas: ["pestana", "pestanas", "pestañas", "extension", "extensiones"],
+
+			cejas: ["ceja", "cejas", "depilacion"],
+		};
+
+		const textoBusqueda = normalizarPalabra(filtros.buscar);
+
+		const palabras = [
+			...new Set(
+				textoBusqueda
+					.split(/\s+/)
+					.filter(
+						(palabra) => palabra.length > 1 && !palabrasIgnoradas.has(palabra),
+					),
+			),
 		];
 
-		const condicionesPalabras = palabras.map((palabra) => {
-			parametros.push(`%${palabra}%`);
+		// Identificamos las familias relacionadas con las palabras.
+		const familiasDetectadas = Object.entries(familias)
+			.filter(([nombre, variantes]) =>
+				palabras.some(
+					(palabra) => palabra === nombre || variantes.includes(palabra),
+				),
+			)
+			.map(([nombre]) => nombre);
 
-			const parametro = `$${parametros.length}`;
+		const camposBusqueda = [
+			"s.nombre",
+			"s.descripcion",
+			"per.nombre",
+			"n.nombre",
+			"n.descripcion",
+			"n.municipio",
+			"n.zona",
+			"n.departamento",
+			"tn.nombre",
+		];
 
-			const coincidencias = camposBusqueda.map(
-				(campo) => `${campo} LIKE ${parametro}`,
-			);
+		const normalizarCampoSql = (campo) => `
+			TRANSLATE(
+				LOWER(COALESCE(${campo}, '')),
+				'áéíóúüñ',
+				'aeiouun'
+			)
+		`;
+
+		const coincidenciaTermino = (terminos) => {
+			const coincidencias = [];
+
+			for (const termino of terminos) {
+				parametros.push(`%${termino}%`);
+
+				const parametro = `$${parametros.length}`;
+
+				for (const campo of camposBusqueda) {
+					coincidencias.push(`${normalizarCampoSql(campo)} LIKE ${parametro}`);
+				}
+			}
 
 			return `(${coincidencias.join(" OR ")})`;
-		});
+		};
 
-		// Todas las palabras deben encontrarse,
-		// aunque estén distribuidas entre distintos campos.
-		condiciones.push(`(${condicionesPalabras.join(" AND ")})`);
+		// Si se reconoce una intención, buscamos por sus variantes.
+		if (familiasDetectadas.length > 0) {
+			const condicionesIntencion = familiasDetectadas.map((nombreFamilia) =>
+				coincidenciaTermino(familias[nombreFamilia]),
+			);
+
+			// Las distintas intenciones detectadas son alternativas.
+			condiciones.push(`(${condicionesIntencion.join(" OR ")})`);
+		} else if (palabras.length > 0) {
+			// Si no conocemos la intención, usamos búsqueda literal.
+			const condicionesPalabras = palabras.map((palabra) =>
+				coincidenciaTermino([palabra]),
+			);
+
+			condiciones.push(`(${condicionesPalabras.join(" AND ")})`);
+		}
 	}
 
 	return {
@@ -514,6 +679,23 @@ const getServiciosPublicados = async (filtros = {}) => {
 		${filtrosSQL}
 	`;
 
+	const parametrosOrden = [...parametros];
+
+	let ordenPrioridad = "";
+
+	if (filtros.departamentoPrioritario?.trim()) {
+		parametrosOrden.push(filtros.departamentoPrioritario.trim().toLowerCase());
+
+		ordenPrioridad = `
+        CASE
+            WHEN LOWER(TRIM(COALESCE(n.departamento, ''))) = 
+                 $${parametrosOrden.length}
+            THEN 0
+            ELSE 1
+        END ASC,
+    `;
+	}
+
 	const sqlDatos = `
 		SELECT
 			s.id AS servicio_id,
@@ -597,13 +779,15 @@ const getServiciosPublicados = async (filtros = {}) => {
 			COALESCE(calificaciones.resenas, 0) AS resenas
 
 		${sqlBase}
-
+		
 		ORDER BY
-			s.nombre ASC,
-			n.nombre ASC
+				${ordenPrioridad}
+				s.nombre ASC,
+				n.nombre ASC,
+				s.id DESC
 
-		LIMIT $${parametros.length + 1}
-		OFFSET $${parametros.length + 2}
+		LIMIT $${parametrosOrden.length + 1}
+		OFFSET $${parametrosOrden.length + 2}
 	`;
 
 	const sqlTotal = `
@@ -612,7 +796,7 @@ const getServiciosPublicados = async (filtros = {}) => {
 	`;
 
 	const [resultadoDatos, resultadoTotal] = await Promise.all([
-		pool.query(sqlDatos, [...parametros, limite, offset]),
+		pool.query(sqlDatos, [...parametrosOrden, limite, offset]),
 		pool.query(sqlTotal, parametros),
 	]);
 
@@ -714,10 +898,53 @@ const buscarServiciosPublicados = async (filtros = {}) => {
 	return getServiciosPublicados(filtros);
 };
 
+// =====================================================
+// OBTENER TODOS LOS NEGOCIOS PÚBLICOS PARA EL MAPA
+// Sin paginación
+// Reutiliza las condiciones de publicación existentes
+// =====================================================
+const getNegociosParaMapa = async () => {
+	const sql = `
+		SELECT
+			n.id,
+			n.tipo_negocio_id,
+			tn.nombre AS tipo_negocio,
+			n.slug,
+			n.codigo,
+			n.nombre,
+			n.descripcion,
+			n.telefono,
+			n.departamento,
+			n.municipio,
+			n.zona,
+			n.direccion,
+			n.latitud,
+			n.longitud,
+			n.logo,
+			n.portada,
+			n.eslogan,
+
+			COALESCE(n.portada, foto_principal.url) AS imagen_portada,
+			COALESCE(n.logo, foto_principal.url) AS imagen,
+
+			COALESCE(calificaciones.rating, 0) AS rating,
+			COALESCE(calificaciones.resenas, 0) AS resenas
+
+		${SQL_NEGOCIOS_PUBLICADOS}
+
+		ORDER BY n.nombre ASC
+	`;
+
+	const resultado = await pool.query(sql);
+
+	return resultado.rows;
+};
+
 module.exports = {
 	getNegociosPublicados,
 	getServiciosPublicados,
 	getServiciosConDescuentoPublico,
 	buscarNegociosPublicados,
 	buscarServiciosPublicados,
+	getNegociosParaMapa,
 };

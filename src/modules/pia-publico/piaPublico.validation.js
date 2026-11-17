@@ -35,7 +35,12 @@ const validarPaginacion = (req, res) => {
 };
 
 const validarFiltrosTexto = (req, res) => {
-	const filtrosTexto = ["departamento", "municipio", "buscar"];
+	const filtrosTexto = [
+		"departamento",
+		"municipio",
+		"buscar",
+		"departamentoPrioritario",
+	];
 
 	for (const campo of filtrosTexto) {
 		const valor = req.query[campo];

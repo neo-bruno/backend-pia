@@ -112,10 +112,35 @@ const buscarServicios = async (req, res) => {
 	}
 };
 
+// =====================================================
+// GET /mapa/negocios
+// Todos los negocios públicos para el mapa
+// =====================================================
+const getNegociosParaMapa = async (req, res) => {
+	try {
+		const datos = await service.getNegociosParaMapa();
+
+		return res.status(200).json({
+			ok: true,
+			mensaje: "Negocios para el mapa obtenidos correctamente",
+			datos,
+			total: datos.length,
+		});
+	} catch (error) {
+		console.error("Error al obtener negocios para el mapa:", error);
+
+		return res.status(500).json({
+			ok: false,
+			mensaje: "Error al obtener los negocios para el mapa",
+		});
+	}
+};
+
 module.exports = {
 	getNegocios,
 	getServicios,
 	getServiciosConDescuentoPublico,
+	getNegociosParaMapa,
 
 	buscarNegocios,
 	buscarServicios,

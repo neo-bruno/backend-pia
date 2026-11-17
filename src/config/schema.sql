@@ -945,7 +945,6 @@ CREATE UNIQUE INDEX uq_favorito_cliente_negocio ON favorito(cliente_id, negocio_
 CREATE UNIQUE INDEX uq_favorito_cliente_profesional ON favorito(cliente_id, profesional_id) WHERE profesional_id IS NOT NULL;
 CREATE UNIQUE INDEX uq_favorito_cliente_servicio ON favorito(cliente_id, servicio_id) WHERE servicio_id IS NOT NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_evaluacion_habilitada_por_objetivo ON evaluacion (( SELECT NULL));
 CREATE INDEX idx_notificacion_cliente_reserva_evaluacion ON notificacion (cliente_id, reserva_id, evaluacion_id);
 
 CREATE UNIQUE INDEX uq_descuento_servicio_cliente_activo ON descuento_servicio_cliente (descuento_servicio_id, cliente_id) WHERE estado_asignacion = 'ACTIVO';

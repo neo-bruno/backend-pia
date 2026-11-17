@@ -13,8 +13,7 @@ const getDescuentosByClienteId = async (clienteId) => {
       -- ==========================================
       SELECT
         dsc.id AS asignacion_id,
-        dsc.estado_asignacion,
-        dsc.estado_aplicado,
+        dsc.estado_asignacion,        
         dsc.fecha_aplicada,
         dsc.hora_aplicada,
         dsc.codigo_aplicado,
@@ -65,8 +64,7 @@ const getDescuentosByClienteId = async (clienteId) => {
         CASE
           WHEN dsc.fecha_aplicada IS NOT NULL
             OR dsc.codigo_aplicado IS NOT NULL
-            OR dsc.monto_aplicado IS NOT NULL
-            OR dsc.estado_aplicado IS NOT NULL
+            OR dsc.monto_aplicado IS NOT NULL            
             THEN 'UTILIZADO'
 
           WHEN d.fecha_fin IS NOT NULL
@@ -124,8 +122,7 @@ const getDescuentosByClienteId = async (clienteId) => {
       -- ==========================================
       SELECT
         dsc.id AS asignacion_id,
-        dsc.estado_asignacion,
-        dsc.estado_aplicado,
+        dsc.estado_asignacion,        
         dsc.fecha_aplicada,
         dsc.hora_aplicada,
         dsc.codigo_aplicado,
@@ -176,8 +173,7 @@ const getDescuentosByClienteId = async (clienteId) => {
         CASE
           WHEN dsc.fecha_aplicada IS NOT NULL
             OR dsc.codigo_aplicado IS NOT NULL
-            OR dsc.monto_aplicado IS NOT NULL
-            OR dsc.estado_aplicado IS NOT NULL
+            OR dsc.monto_aplicado IS NOT NULL            
             THEN 'UTILIZADO'
 
           WHEN d.fecha_fin IS NOT NULL
@@ -294,7 +290,7 @@ const getDescuentosByClienteYProfesional = async (clienteId, profesionalId) => {
     SELECT
       dsc.id AS asignacion_id,
       dsc.estado_asignacion,
-      dsc.estado_aplicado,
+      dsc.estado_asignacion,
       dsc.fecha_aplicada,
       dsc.hora_aplicada,
       dsc.codigo_aplicado,
@@ -340,7 +336,7 @@ const getDescuentosByClienteYProfesional = async (clienteId, profesionalId) => {
         dsc.fecha_aplicada IS NOT NULL
         OR dsc.codigo_aplicado IS NOT NULL
         OR dsc.monto_aplicado IS NOT NULL
-        OR dsc.estado_aplicado IS NOT NULL
+        OR dsc.estado_asignacion IS NOT NULL
       )
 
     ORDER BY s.nombre, d.titulo
@@ -409,7 +405,7 @@ const getDescuentosDisponiblesPorServicio = async (clienteId, servicioId) => {
               AND dsc.hora_aplicada IS NULL
               AND dsc.codigo_aplicado IS NULL
               AND dsc.monto_aplicado IS NULL
-              AND dsc.estado_aplicado IS NULL
+              AND dsc.estado_asignacion IS NULL
           )
         )
 
@@ -641,7 +637,7 @@ const obtenerDescuentoParaReserva = async (
         dsc.hora_aplicada,
         dsc.codigo_aplicado,
         dsc.monto_aplicado,
-        dsc.estado_aplicado
+        dsc.estado_asignacion
 
       FROM descuento_servicio_cliente dsc
 
@@ -653,7 +649,7 @@ const obtenerDescuentoParaReserva = async (
         AND dsc.hora_aplicada IS NULL
         AND dsc.codigo_aplicado IS NULL
         AND dsc.monto_aplicado IS NULL
-        AND dsc.estado_aplicado IS NULL
+        AND dsc.estado_asignacion IS NULL
 
       LIMIT 1
       FOR UPDATE
@@ -755,7 +751,7 @@ const marcarDescuentoUtilizado = async (
       AND hora_aplicada IS NULL
       AND codigo_aplicado IS NULL
       AND monto_aplicado IS NULL
-      AND estado_aplicado IS NULL
+      AND estado_asignacion IS NULL
     RETURNING id
   `;
 
