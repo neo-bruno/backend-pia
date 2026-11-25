@@ -3,17 +3,33 @@
 // ============================================================
 
 const validarCondicionId = (id) => {
-  const condicionId = Number(id);
+	const condicionId = Number(id);
 
-  if (!Number.isInteger(condicionId) || condicionId <= 0) {
-    const error = new Error("El ID de la condición no es válido");
+	if (!Number.isInteger(condicionId) || condicionId <= 0) {
+		const error = new Error("El ID de la condición no es válido");
 
-    error.status = 400;
+		error.status = 400;
 
-    throw error;
-  }
+		throw error;
+	}
 
-  return condicionId;
+	return condicionId;
+};
+
+// ============================================================
+// ID DE SERVICIO
+// ============================================================
+
+const validarServicioId = (id) => {
+	const servicioId = Number(id);
+
+	if (!Number.isInteger(servicioId) || servicioId <= 0) {
+		const error = new Error("El ID del servicio no es válido");
+		error.status = 400;
+		throw error;
+	}
+
+	return servicioId;
 };
 
 // ============================================================
@@ -21,189 +37,150 @@ const validarCondicionId = (id) => {
 // ============================================================
 
 const validarCondicion = (condicion) => {
-  if (!condicion || typeof condicion !== "object") {
-    const error = new Error("La información de la condición es obligatoria");
+	if (!condicion || typeof condicion !== "object") {
+		const error = new Error("La información de la condición es obligatoria");
+		error.status = 400;
+		throw error;
+	}
 
-    error.status = 400;
+	// ==========================================================
+	// NOMBRE
+	// ==========================================================
 
-    throw error;
-  }
+	if (
+		!condicion.nombre ||
+		typeof condicion.nombre !== "string" ||
+		!condicion.nombre.trim()
+	) {
+		const error = new Error("El nombre de la condición es obligatorio");
+		error.status = 400;
+		throw error;
+	}
 
-  // ==========================================================
-  // NOMBRE
-  // ==========================================================
+	if (condicion.nombre.trim().length > 150) {
+		const error = new Error(
+			"El nombre de la condición no puede superar los 150 caracteres",
+		);
+		error.status = 400;
+		throw error;
+	}
 
-  if (
-    !condicion.nombre ||
-    typeof condicion.nombre !== "string" ||
-    !condicion.nombre.trim()
-  ) {
-    const error = new Error("El nombre de la condición es obligatorio");
+	// ==========================================================
+	// DESCRIPCIÓN
+	// ==========================================================
 
-    error.status = 400;
+	if (
+		condicion.descripcion !== undefined &&
+		condicion.descripcion !== null &&
+		typeof condicion.descripcion !== "string"
+	) {
+		const error = new Error("La descripción de la condición no es válida");
+		error.status = 400;
+		throw error;
+	}
 
-    throw error;
-  }
+	// ==========================================================
+	// ADELANTO
+	// ==========================================================
 
-  if (condicion.nombre.trim().length > 150) {
-    const error = new Error(
-      "El nombre de la condición no puede superar los 150 caracteres",
-    );
+	const requiereAdelanto = condicion.requiere_adelanto === true;
 
-    error.status = 400;
+	let montoAdelanto = null;
+	let porcentajeAdelanto = null;
 
-    throw error;
-  }
+	if (requiereAdelanto) {
+		if (condicion.tipo_adelanto === "MONTO") {
+			const monto = Number(condicion.monto_adelanto);
 
-  // ==========================================================
-  // DESCRIPCIÓN
-  // ==========================================================
+			if (!Number.isFinite(monto) || monto < 0) {
+				const error = new Error("El monto de adelanto no es válido");
+				error.status = 400;
+				throw error;
+			}
 
-  if (
-    condicion.descripcion !== undefined &&
-    condicion.descripcion !== null &&
-    typeof condicion.descripcion !== "string"
-  ) {
-    const error = new Error("La descripción de la condición no es válida");
+			montoAdelanto = monto;
+		} else if (condicion.tipo_adelanto === "PORCENTAJE") {
+			const porcentaje = Number(condicion.porcentaje_adelanto);
 
-    error.status = 400;
+			if (!Number.isFinite(porcentaje) || porcentaje < 0 || porcentaje > 100) {
+				const error = new Error(
+					"El porcentaje de adelanto debe estar entre 0 y 100",
+				);
+				error.status = 400;
+				throw error;
+			}
 
-    throw error;
-  }
+			porcentajeAdelanto = porcentaje;
+		} else {
+			const error = new Error(
+				"El tipo de adelanto debe ser MONTO o PORCENTAJE",
+			);
+			error.status = 400;
+			throw error;
+		}
+	}
 
-  // ==========================================================
-  // ADELANTO
-  // ==========================================================
+	// ==========================================================
+	// REPROGRAMACIÓN
+	// ==========================================================
 
-  const requiereAdelanto = condicion.requiere_adelanto === true;
+	const permiteReprogramar = condicion.permite_reprogramar === true;
 
-  let montoAdelanto = null;
-  let porcentajeAdelanto = null;
+	let limiteHorasReprogramacion = null;
 
-  if (requiereAdelanto) {
-    // --------------------------------------------------------
-    // MONTO
-    // --------------------------------------------------------
+	if (permiteReprogramar) {
+		const limite = Number(condicion.limite_horas_reprogramacion);
 
-    if (condicion.tipo_adelanto === "MONTO") {
-      const monto = Number(condicion.monto_adelanto);
+		if (!Number.isInteger(limite) || limite < 0) {
+			const error = new Error(
+				"El límite de horas para reprogramar no es válido",
+			);
+			error.status = 400;
+			throw error;
+		}
 
-      if (!Number.isFinite(monto) || monto < 0) {
-        const error = new Error("El monto de adelanto no es válido");
+		limiteHorasReprogramacion = limite;
+	}
 
-        error.status = 400;
+	// ==========================================================
+	// CANCELACIÓN
+	// ==========================================================
 
-        throw error;
-      }
+	const permiteCancelar = condicion.permite_cancelar === true;
 
-      montoAdelanto = monto;
-    }
+	let limiteHorasCancelacion = null;
 
-    // --------------------------------------------------------
-    // PORCENTAJE
-    // --------------------------------------------------------
-    else if (condicion.tipo_adelanto === "PORCENTAJE") {
-      const porcentaje = Number(condicion.porcentaje_adelanto);
+	if (permiteCancelar) {
+		const limite = Number(condicion.limite_horas_cancelacion);
 
-      if (!Number.isFinite(porcentaje) || porcentaje < 0 || porcentaje > 100) {
-        const error = new Error(
-          "El porcentaje de adelanto debe estar entre 0 y 100",
-        );
+		if (!Number.isInteger(limite) || limite < 0) {
+			const error = new Error("El límite de horas para cancelar no es válido");
+			error.status = 400;
+			throw error;
+		}
 
-        error.status = 400;
+		limiteHorasCancelacion = limite;
+	}
 
-        throw error;
-      }
+	// ==========================================================
+	// RESULTADO
+	// ==========================================================
 
-      porcentajeAdelanto = porcentaje;
-    }
-
-    // --------------------------------------------------------
-    // TIPO NO VÁLIDO
-    // --------------------------------------------------------
-    else {
-      const error = new Error(
-        "El tipo de adelanto debe ser MONTO o PORCENTAJE",
-      );
-
-      error.status = 400;
-
-      throw error;
-    }
-  }
-
-  // ==========================================================
-  // REPROGRAMACIÓN
-  // ==========================================================
-
-  const permiteReprogramar = condicion.permite_reprogramar === true;
-
-  let limiteHorasReprogramacion = null;
-
-  if (permiteReprogramar) {
-    const limite = Number(condicion.limite_horas_reprogramacion);
-
-    if (!Number.isInteger(limite) || limite < 0) {
-      const error = new Error(
-        "El límite de horas para reprogramar no es válido",
-      );
-
-      error.status = 400;
-
-      throw error;
-    }
-
-    limiteHorasReprogramacion = limite;
-  }
-
-  // ==========================================================
-  // CANCELACIÓN
-  // ==========================================================
-
-  const permiteCancelar = condicion.permite_cancelar === true;
-
-  let limiteHorasCancelacion = null;
-
-  if (permiteCancelar) {
-    const limite = Number(condicion.limite_horas_cancelacion);
-
-    if (!Number.isInteger(limite) || limite < 0) {
-      const error = new Error("El límite de horas para cancelar no es válido");
-
-      error.status = 400;
-
-      throw error;
-    }
-
-    limiteHorasCancelacion = limite;
-  }
-
-  // ==========================================================
-  // RESULTADO
-  // ==========================================================
-
-  return {
-    nombre: condicion.nombre.trim(),
-
-    descripcion: condicion.descripcion?.trim() || null,
-
-    requiere_adelanto: requiereAdelanto,
-
-    monto_adelanto: montoAdelanto,
-
-    porcentaje_adelanto: porcentajeAdelanto,
-
-    permite_reprogramar: permiteReprogramar,
-
-    permite_cancelar: permiteCancelar,
-
-    limite_horas_reprogramacion: limiteHorasReprogramacion,
-
-    limite_horas_cancelacion: limiteHorasCancelacion,
-  };
+	return {
+		nombre: condicion.nombre.trim(),
+		descripcion: condicion.descripcion?.trim() || null,
+		requiere_adelanto: requiereAdelanto,
+		monto_adelanto: montoAdelanto,
+		porcentaje_adelanto: porcentajeAdelanto,
+		permite_reprogramar: permiteReprogramar,
+		permite_cancelar: permiteCancelar,
+		limite_horas_reprogramacion: limiteHorasReprogramacion,
+		limite_horas_cancelacion: limiteHorasCancelacion,
+	};
 };
 
 module.exports = {
-  validarCondicion,
-  validarCondicionId,
+	validarCondicion,
+	validarCondicionId,
+	validarServicioId,
 };

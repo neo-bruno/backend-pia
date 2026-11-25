@@ -5,18 +5,18 @@ const service = require("./condicion.service");
 // ============================================================
 
 const getConditionById = async (req, res, next) => {
-  try {
-    const condicionId = Number(req.params.id);
+	try {
+		const condicionId = Number(req.params.id);
 
-    const condicion = await service.getConditionById(condicionId);
+		const condicion = await service.getConditionById(condicionId);
 
-    res.status(200).json({
-      ok: true,
-      data: condicion,
-    });
-  } catch (error) {
-    next(error);
-  }
+		res.status(200).json({
+			ok: true,
+			data: condicion,
+		});
+	} catch (error) {
+		next(error);
+	}
 };
 
 // ============================================================
@@ -24,17 +24,19 @@ const getConditionById = async (req, res, next) => {
 // ============================================================
 
 const createCondition = async (req, res, next) => {
-  try {
-    const condicion = await service.createCondition(req.body);
+	try {
+		const { servicioId, ...datosCondicion } = req.body;
 
-    res.status(201).json({
-      ok: true,
-      message: "Condición creada correctamente",
-      data: condicion,
-    });
-  } catch (error) {
-    next(error);
-  }
+		const condicion = await service.createCondition(servicioId, datosCondicion);
+
+		res.status(201).json({
+			ok: true,
+			message: "Condición creada correctamente",
+			data: condicion,
+		});
+	} catch (error) {
+		next(error);
+	}
 };
 
 // ============================================================
@@ -42,23 +44,28 @@ const createCondition = async (req, res, next) => {
 // ============================================================
 
 const updateCondition = async (req, res, next) => {
-  try {
-    const condicionId = Number(req.params.id);
+	try {
+		const condicionId = Number(req.params.id);
+		const { servicioId, ...datosCondicion } = req.body;
 
-    const condicion = await service.updateCondition(condicionId, req.body);
+		const condicion = await service.updateCondition(
+			servicioId,
+			condicionId,
+			datosCondicion,
+		);
 
-    res.status(200).json({
-      ok: true,
-      message: "Condición actualizada correctamente",
-      data: condicion,
-    });
-  } catch (error) {
-    next(error);
-  }
+		res.status(200).json({
+			ok: true,
+			message: "Condición actualizada correctamente",
+			data: condicion,
+		});
+	} catch (error) {
+		next(error);
+	}
 };
 
 module.exports = {
-  getConditionById,
-  createCondition,
-  updateCondition,
+	getConditionById,
+	createCondition,
+	updateCondition,
 };

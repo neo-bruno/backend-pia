@@ -190,6 +190,7 @@ const validarCondicion = (condicion) => {
   }
 
   return {
+    id: condicion.id ? Number(condicion.id) : null,
     nombre: condicion.nombre.trim(),
 
     descripcion: condicion.descripcion?.trim() || null,
