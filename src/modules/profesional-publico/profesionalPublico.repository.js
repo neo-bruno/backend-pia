@@ -1298,6 +1298,7 @@ async function getProfessionalBySlug(slug) {
 
       per.id AS persona_id,
       per.nombre,
+      per.telefono,
 
       -- =====================================================
       -- EXPERIENCIA
@@ -1519,6 +1520,7 @@ async function getProfessionalBySlug(slug) {
 			id: row.id,
 			persona_id: row.persona_id,
 			nombre: row.nombre,
+      telefono: row.telefono,
 			slug: row.slug,
 
 			foto: row.foto,

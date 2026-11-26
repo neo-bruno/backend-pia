@@ -11,6 +11,7 @@ const getScheduleByProfessional = async (
       -- ================================================
       p.id AS profesional_id,
       per.nombre AS profesional_nombre,
+      per.telefono AS profesional_telefono,
       p.slug AS profesional_slug,
       p.foto AS profesional_foto,
       p.pago_qr AS profesional_pago_qr,

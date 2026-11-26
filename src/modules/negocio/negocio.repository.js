@@ -750,11 +750,50 @@ async function getBusinessBySlug(slug) {
 
 	const resenasResult = await pool.query(resenasQuery, [negocio.id]);
 
+	// ==========================================
+	// FOTOS Y VIDEOS DEL NEGOCIO
+	// ==========================================
+	const archivosQuery = `
+  SELECT
+    na.id,
+    na.negocio_id,
+    na.archivo_id,
+    na.tipo,
+    na.orden,
+    na.principal,
+    a.nombre,
+    a.url,
+    a.mime_type
+  FROM negocio_archivo na
+
+  INNER JOIN archivo a
+    ON a.id = na.archivo_id
+
+  WHERE na.negocio_id = $1
+
+  ORDER BY
+    na.tipo ASC,
+    na.orden ASC,
+    na.id ASC;
+`;
+
+	const archivosResult = await pool.query(archivosQuery, [negocio.id]);
+
+	const fotos = archivosResult.rows.filter(
+		(archivo) => archivo.tipo === "FOTO",
+	);
+
+	const videos = archivosResult.rows.filter(
+		(archivo) => archivo.tipo === "VIDEO",
+	);
+
 	return {
 		negocio,
 		profesionales: profesionalesResult.rows,
 		horarios,
 		resenas: resenasResult.rows,
+		fotos,
+		videos,
 	};
 }
 

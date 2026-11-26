@@ -7,16 +7,16 @@ const repository = require("./horarioPublico.repository");
 // ============================================================
 
 const esHoy = (fecha) => {
-  const ahora = new Date();
+	const ahora = new Date();
 
-  const fechaBolivia = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/La_Paz",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(ahora);
+	const fechaBolivia = new Intl.DateTimeFormat("en-CA", {
+		timeZone: "America/La_Paz",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).format(ahora);
 
-  return fecha === fechaBolivia;
+	return fecha === fechaBolivia;
 };
 
 // ============================================================
@@ -24,15 +24,15 @@ const esHoy = (fecha) => {
 // ============================================================
 
 const obtenerHoraActualBolivia = () => {
-  const ahora = new Date();
+	const ahora = new Date();
 
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "America/La_Paz",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(ahora);
+	return new Intl.DateTimeFormat("en-GB", {
+		timeZone: "America/La_Paz",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+	}).format(ahora);
 };
 
 // ============================================================
@@ -40,16 +40,16 @@ const obtenerHoraActualBolivia = () => {
 // ============================================================
 
 const filtrarHorariosPasados = (horarios, fecha) => {
-  // Si no es hoy, mostramos todos
-  if (!esHoy(fecha)) {
-    return horarios;
-  }
+	// Si no es hoy, mostramos todos
+	if (!esHoy(fecha)) {
+		return horarios;
+	}
 
-  const horaActual = obtenerHoraActualBolivia();
+	const horaActual = obtenerHoraActualBolivia();
 
-  return horarios.filter((slot) => {
-    return slot.hora_inicio >= horaActual;
-  });
+	return horarios.filter((slot) => {
+		return slot.hora_inicio >= horaActual;
+	});
 };
 
 // ============================================================
@@ -57,9 +57,9 @@ const filtrarHorariosPasados = (horarios, fecha) => {
 // ============================================================
 
 const horaAMinutos = (hora) => {
-  const [horas, minutos, segundos = 0] = hora.split(":").map(Number);
+	const [horas, minutos, segundos = 0] = hora.split(":").map(Number);
 
-  return horas * 60 + minutos + Math.floor(segundos / 60);
+	return horas * 60 + minutos + Math.floor(segundos / 60);
 };
 
 // ============================================================
@@ -67,147 +67,147 @@ const horaAMinutos = (hora) => {
 // ============================================================
 
 const evaluarSlotsParaServicio = (horarios, duracionServicio) => {
-  return horarios.map((slot, index) => {
-    // --------------------------------------------------------
-    // SI EL SLOT YA ESTÁ OCUPADO
-    // --------------------------------------------------------
+	return horarios.map((slot, index) => {
+		// --------------------------------------------------------
+		// SI EL SLOT YA ESTÁ OCUPADO
+		// --------------------------------------------------------
 
-    if (
-      slot.estado === "OCUPADO" ||
-      slot.estado === "MI_RESERVA" ||
-      slot.estado === "BLOQUEADO"
-    ) {
-      return {
-        ...slot,
-        seleccionable: false,
-        slots_requeridos: null,
-        slots_reserva: [],
-        motivo: "SLOT_NO_DISPONIBLE",
-      };
-    }
+		if (
+			slot.estado === "OCUPADO" ||
+			slot.estado === "MI_RESERVA" ||
+			slot.estado === "BLOQUEADO"
+		) {
+			return {
+				...slot,
+				seleccionable: false,
+				slots_requeridos: null,
+				slots_reserva: [],
+				motivo: "SLOT_NO_DISPONIBLE",
+			};
+		}
 
-    // --------------------------------------------------------
-    // SLOT DE INICIO
-    // --------------------------------------------------------
+		// --------------------------------------------------------
+		// SLOT DE INICIO
+		// --------------------------------------------------------
 
-    const slotsReserva = [];
+		const slotsReserva = [];
 
-    let minutosAcumulados = 0;
+		let minutosAcumulados = 0;
 
-    let slotActual = slot;
+		let slotActual = slot;
 
-    let posicion = index;
+		let posicion = index;
 
-    // --------------------------------------------------------
-    // BUSCAR SLOTS CONSECUTIVOS
-    // --------------------------------------------------------
+		// --------------------------------------------------------
+		// BUSCAR SLOTS CONSECUTIVOS
+		// --------------------------------------------------------
 
-    while (minutosAcumulados < duracionServicio) {
-      // ----------------------------------------------
-      // ¿EL SLOT ACTUAL ESTÁ DISPONIBLE?
-      // ----------------------------------------------
+		while (minutosAcumulados < duracionServicio) {
+			// ----------------------------------------------
+			// ¿EL SLOT ACTUAL ESTÁ DISPONIBLE?
+			// ----------------------------------------------
 
-      if (!slotActual) {
-        break;
-      }
+			if (!slotActual) {
+				break;
+			}
 
-      if (slotActual.estado !== "DISPONIBLE") {
-        break;
-      }
+			if (slotActual.estado !== "DISPONIBLE") {
+				break;
+			}
 
-      // ----------------------------------------------
-      // AGREGAR SLOT
-      // ----------------------------------------------
+			// ----------------------------------------------
+			// AGREGAR SLOT
+			// ----------------------------------------------
 
-      slotsReserva.push(slotActual);
+			slotsReserva.push(slotActual);
 
-      const inicio = horaAMinutos(slotActual.hora_inicio);
+			const inicio = horaAMinutos(slotActual.hora_inicio);
 
-      const fin = horaAMinutos(slotActual.hora_fin);
+			const fin = horaAMinutos(slotActual.hora_fin);
 
-      const duracionSlot = fin - inicio;
+			const duracionSlot = fin - inicio;
 
-      if (duracionSlot <= 0) {
-        break;
-      }
+			if (duracionSlot <= 0) {
+				break;
+			}
 
-      minutosAcumulados += duracionSlot;
+			minutosAcumulados += duracionSlot;
 
-      // ----------------------------------------------
-      // ¿YA TENEMOS SUFICIENTE TIEMPO?
-      // ----------------------------------------------
+			// ----------------------------------------------
+			// ¿YA TENEMOS SUFICIENTE TIEMPO?
+			// ----------------------------------------------
 
-      if (minutosAcumulados >= duracionServicio) {
-        break;
-      }
+			if (minutosAcumulados >= duracionServicio) {
+				break;
+			}
 
-      // ----------------------------------------------
-      // SIGUIENTE SLOT
-      // ----------------------------------------------
+			// ----------------------------------------------
+			// SIGUIENTE SLOT
+			// ----------------------------------------------
 
-      const siguiente = horarios[posicion + 1];
+			const siguiente = horarios[posicion + 1];
 
-      if (!siguiente) {
-        slotActual = null;
-        break;
-      }
+			if (!siguiente) {
+				slotActual = null;
+				break;
+			}
 
-      // ----------------------------------------------
-      // VERIFICAR CONTINUIDAD
-      // ----------------------------------------------
+			// ----------------------------------------------
+			// VERIFICAR CONTINUIDAD
+			// ----------------------------------------------
 
-      const finActual = horaAMinutos(slotActual.hora_fin);
+			const finActual = horaAMinutos(slotActual.hora_fin);
 
-      const inicioSiguiente = horaAMinutos(siguiente.hora_inicio);
+			const inicioSiguiente = horaAMinutos(siguiente.hora_inicio);
 
-      if (inicioSiguiente !== finActual) {
-        slotActual = null;
-        break;
-      }
+			if (inicioSiguiente !== finActual) {
+				slotActual = null;
+				break;
+			}
 
-      // ----------------------------------------------
-      // CONTINUAR
-      // ----------------------------------------------
+			// ----------------------------------------------
+			// CONTINUAR
+			// ----------------------------------------------
 
-      posicion++;
-      slotActual = siguiente;
-    }
+			posicion++;
+			slotActual = siguiente;
+		}
 
-    // --------------------------------------------------------
-    // RESULTADO
-    // --------------------------------------------------------
+		// --------------------------------------------------------
+		// RESULTADO
+		// --------------------------------------------------------
 
-    const puedeReservar =
-      minutosAcumulados >= duracionServicio && slotsReserva.length > 0;
+		const puedeReservar =
+			minutosAcumulados >= duracionServicio && slotsReserva.length > 0;
 
-    if (!puedeReservar) {
-      return {
-        ...slot,
+		if (!puedeReservar) {
+			return {
+				...slot,
 
-        seleccionable: false,
+				seleccionable: false,
 
-        slots_requeridos: null,
+				slots_requeridos: null,
 
-        slots_reserva: [],
+				slots_reserva: [],
 
-        motivo: "NO_HAY_SLOTS_CONSECUTIVOS",
-      };
-    }
+				motivo: "NO_HAY_SLOTS_CONSECUTIVOS",
+			};
+		}
 
-    return {
-      ...slot,
+		return {
+			...slot,
 
-      seleccionable: true,
+			seleccionable: true,
 
-      slots_requeridos: slotsReserva.length,
+			slots_requeridos: slotsReserva.length,
 
-      slots_reserva: slotsReserva.map((item) => item.slot_id),
+			slots_reserva: slotsReserva.map((item) => item.slot_id),
 
-      hora_fin_servicio: slotsReserva[slotsReserva.length - 1].hora_fin,
+			hora_fin_servicio: slotsReserva[slotsReserva.length - 1].hora_fin,
 
-      motivo: null,
-    };
-  });
+			motivo: null,
+		};
+	});
 };
 
 // ============================================================
@@ -215,252 +215,250 @@ const evaluarSlotsParaServicio = (horarios, duracionServicio) => {
 // ============================================================
 
 const getAvailableSchedule = async (
-  profesionalId,
-  fecha,
-  clienteId = null,
-  servicioId = null,
+	profesionalId,
+	fecha,
+	clienteId = null,
+	servicioId = null,
 ) => {
-  const client = await pool.connect();
+	const client = await pool.connect();
 
-  try {
-    // ========================================================
-    // OBTENER SLOTS
-    // ========================================================
+	try {
+		// ========================================================
+		// OBTENER SLOTS
+		// ========================================================
 
-    const rows = await repository.getScheduleByProfessional(
-      client,
-      profesionalId,
-      fecha,
-      clienteId,
-    );
+		const rows = await repository.getScheduleByProfessional(
+			client,
+			profesionalId,
+			fecha,
+			clienteId,
+		);
 
-    if (!rows.length) {
-      return null;
-    }
+		if (!rows.length) {
+			return null;
+		}
 
-    // ========================================================
-    // PROFESIONAL
-    // ========================================================
+		// ========================================================
+		// PROFESIONAL
+		// ========================================================
 
-    const profesional = {
-      id: Number(rows[0].profesional_id),
+		const profesional = {
+			id: Number(rows[0].profesional_id),
 
-      nombre: rows[0].profesional_nombre,
+			nombre: rows[0].profesional_nombre,
+			telefono: rows[0].profesional_telefono,
+			slug: rows[0].profesional_slug,
+			foto: rows[0].profesional_foto,
+			pago_qr: rows[0].profesional_pago_qr,
 
-      slug: rows[0].profesional_slug,
+			// ================================================
+			// EVALUACIÓN DEL PROFESIONAL
+			// ================================================
+			calificacion_promedio: Number(
+				rows[0].profesional_calificacion_promedio || 0,
+			),
 
-      foto: rows[0].profesional_foto,
+			total_resenas: Number(rows[0].profesional_total_resenas || 0),
+		};
 
-      pago_qr: rows[0].profesional_pago_qr,
+		// ========================================================
+		// TRANSFORMAR SLOTS
+		// ========================================================
+		let horarios = rows.map((row) => {
+			let estado = row.slot_estado;
 
-      // ================================================
-      // EVALUACIÓN DEL PROFESIONAL
-      // ================================================
-      calificacion_promedio: Number(
-        rows[0].profesional_calificacion_promedio || 0,
-      ),
+			let reservaId = null;
+			let clienteNombre = null;
 
-      total_resenas: Number(rows[0].profesional_total_resenas || 0),
-    };
+			// ======================================================
+			// RESERVA ASOCIADA AL SLOT
+			// ======================================================
 
-    // ========================================================
-    // TRANSFORMAR SLOTS
-    // ========================================================
-    let horarios = rows.map((row) => {
-      let estado = row.slot_estado;
+			if (row.reserva_id) {
+				reservaId = Number(row.reserva_id);
+				clienteNombre = row.reserva_cliente_nombre;
 
-      let reservaId = null;
-      let clienteNombre = null;
+				if (row.reserva_estado === "COMPLETADA") {
+					estado = "COMPLETADA";
+				} else if (
+					clienteId &&
+					Number(row.reserva_cliente_id) === Number(clienteId)
+				) {
+					estado = "MI_RESERVA";
+				} else if (row.reserva_estado === "PENDIENTE") {
+					estado = "PENDIENTE";
+				} else {
+					estado = "OCUPADO";
+				}
+			}
 
-      // ======================================================
-      // RESERVA ASOCIADA AL SLOT
-      // ======================================================
+			// ======================================================
+			// BLOQUEO ASOCIADO AL SLOT
+			// El bloqueo tiene prioridad sobre la disponibilidad.
+			// ======================================================
 
-      if (row.reserva_id) {
-        reservaId = Number(row.reserva_id);
-        clienteNombre = row.reserva_cliente_nombre;
+			if (row.bloqueo_id) {
+				estado = "BLOQUEADO";
 
-        if (row.reserva_estado === "COMPLETADA") {
-          estado = "COMPLETADA";
-        } else if (
-          clienteId &&
-          Number(row.reserva_cliente_id) === Number(clienteId)
-        ) {
-          estado = "MI_RESERVA";
-        } else if (row.reserva_estado === "PENDIENTE") {
-          estado = "PENDIENTE";
-        } else {
-          estado = "OCUPADO";
-        }
-      }
+				// Un bloqueo no es una reserva de cliente.
+				reservaId = null;
+				clienteNombre = null;
+			}
 
-      // ======================================================
-      // BLOQUEO ASOCIADO AL SLOT
-      // El bloqueo tiene prioridad sobre la disponibilidad.
-      // ======================================================
+			// ======================================================
+			// ESTADO BLOQUEADO DEL SLOT
+			// ======================================================
 
-      if (row.bloqueo_id) {
-        estado = "BLOQUEADO";
+			if (row.slot_estado === "BLOQUEADO") {
+				estado = "BLOQUEADO";
+			}
 
-        // Un bloqueo no es una reserva de cliente.
-        reservaId = null;
-        clienteNombre = null;
-      }
+			return {
+				slot_id: Number(row.slot_id),
+				horario_profesional_id: Number(row.horario_profesional_id),
+				horario_id: Number(row.horario_id),
+				turno: row.turno,
 
-      // ======================================================
-      // ESTADO BLOQUEADO DEL SLOT
-      // ======================================================
+				hora_inicio: row.slot_inicio,
+				hora_fin: row.slot_fin,
+				duracion: Number(row.slot_duracion),
 
-      if (row.slot_estado === "BLOQUEADO") {
-        estado = "BLOQUEADO";
-      }
+				estado,
 
-      return {
-        slot_id: Number(row.slot_id),
-        horario_profesional_id: Number(row.horario_profesional_id),
-        horario_id: Number(row.horario_id),
-        turno: row.turno,
+				reserva_id: reservaId,
+				cliente_nombre: clienteNombre,
 
-        hora_inicio: row.slot_inicio,
-        hora_fin: row.slot_fin,
-        duracion: Number(row.slot_duracion),
+				// Información para las tarjetas públicas
+				servicio_nombre: row.reserva_servicio_nombre || null,
+				motivo: row.bloqueo_motivo || null,
 
-        estado,
+				// Datos del bloqueo
+				bloqueo_id: row.bloqueo_id ? Number(row.bloqueo_id) : null,
 
-        reserva_id: reservaId,
-        cliente_nombre: clienteNombre,
+				bloqueo_fecha: row.bloqueo_fecha || null,
+				bloqueo_hora_inicio: row.bloqueo_hora_inicio || null,
+				bloqueo_hora_fin: row.bloqueo_hora_fin || null,
 
-        // Información para las tarjetas públicas
-        servicio_nombre: row.reserva_servicio_nombre || null,
-        motivo: row.bloqueo_motivo || null,
+				seleccionable: false,
+				slots_requeridos: null,
+				slots_reserva: [],
+				hora_fin_servicio: null,
+			};
+		});
 
-        // Datos del bloqueo
-        bloqueo_id: row.bloqueo_id ? Number(row.bloqueo_id) : null,
+		// ========================================================
+		// ELIMINAR HORARIOS CUYO INICIO YA PASÓ
+		// ========================================================
 
-        bloqueo_fecha: row.bloqueo_fecha || null,
-        bloqueo_hora_inicio: row.bloqueo_hora_inicio || null,
-        bloqueo_hora_fin: row.bloqueo_hora_fin || null,
+		horarios = filtrarHorariosPasados(horarios, fecha);
 
-        seleccionable: false,
-        slots_requeridos: null,
-        slots_reserva: [],
-        hora_fin_servicio: null,
-      };
-    });
+		// ========================================================
+		// SERVICIO
+		// ========================================================
 
-    // ========================================================
-    // ELIMINAR HORARIOS CUYO INICIO YA PASÓ
-    // ========================================================
+		let servicio = null;
 
-    horarios = filtrarHorariosPasados(horarios, fecha);
+		if (servicioId) {
+			// ======================================================
+			// TENEMOS SERVICIO
+			// ======================================================
 
-    // ========================================================
-    // SERVICIO
-    // ========================================================
+			servicio = await repository.getServiceById(
+				client,
+				servicioId,
+				profesionalId,
+			);
 
-    let servicio = null;
+			if (!servicio) {
+				return {
+					fecha,
+					profesional,
+					servicio: null,
+					horarios,
+					error_servicio: "SERVICIO_NO_ENCONTRADO",
+				};
+			}
 
-    if (servicioId) {
-      // ======================================================
-      // TENEMOS SERVICIO
-      // ======================================================
+			// ======================================================
+			// EVALUAR SLOTS SEGÚN DURACIÓN DEL SERVICIO
+			// ======================================================
 
-      servicio = await repository.getServiceById(
-        client,
-        servicioId,
-        profesionalId,
-      );
+			horarios = evaluarSlotsParaServicio(horarios, Number(servicio.duracion));
+		} else {
+			// ======================================================
+			// NO TENEMOS SERVICIO TODAVÍA
+			// ======================================================
+			// En este punto el cliente solamente está
+			// seleccionando el horario.
+			//
+			// Todavía NO sabemos cuánto dura el servicio.
+			// Por eso NO debemos evaluar continuidad.
+			// ======================================================
 
-      if (!servicio) {
-        return {
-          fecha,
-          profesional,
-          servicio: null,
-          horarios,
-          error_servicio: "SERVICIO_NO_ENCONTRADO",
-        };
-      }
+			horarios = horarios.map((slot) => {
+				if (slot.estado !== "DISPONIBLE") {
+					return {
+						...slot,
+						seleccionable: false,
+						slots_requeridos: null,
+						slots_reserva: [],
+						hora_fin_servicio: null,
+					};
+				}
 
-      // ======================================================
-      // EVALUAR SLOTS SEGÚN DURACIÓN DEL SERVICIO
-      // ======================================================
+				return {
+					...slot,
 
-      horarios = evaluarSlotsParaServicio(horarios, Number(servicio.duracion));
-    } else {
-      // ======================================================
-      // NO TENEMOS SERVICIO TODAVÍA
-      // ======================================================
-      // En este punto el cliente solamente está
-      // seleccionando el horario.
-      //
-      // Todavía NO sabemos cuánto dura el servicio.
-      // Por eso NO debemos evaluar continuidad.
-      // ======================================================
+					// El horario disponible puede seleccionarse
+					seleccionable: true,
 
-      horarios = horarios.map((slot) => {
-        if (slot.estado !== "DISPONIBLE") {
-          return {
-            ...slot,
-            seleccionable: false,
-            slots_requeridos: null,
-            slots_reserva: [],
-            hora_fin_servicio: null,
-          };
-        }
+					// Todavía no sabemos qué servicio elegirá
+					slots_requeridos: null,
 
-        return {
-          ...slot,
+					// Por ahora solamente seleccionamos este slot
+					slots_reserva: [slot.slot_id],
 
-          // El horario disponible puede seleccionarse
-          seleccionable: true,
+					// Todavía no conocemos la hora final
+					// del servicio que elegirá
+					hora_fin_servicio: null,
 
-          // Todavía no sabemos qué servicio elegirá
-          slots_requeridos: null,
+					motivo: null,
+				};
+			});
+		}
 
-          // Por ahora solamente seleccionamos este slot
-          slots_reserva: [slot.slot_id],
+		// ========================================================
+		// RESPUESTA
+		// ========================================================
 
-          // Todavía no conocemos la hora final
-          // del servicio que elegirá
-          hora_fin_servicio: null,
+		return {
+			fecha,
 
-          motivo: null,
-        };
-      });
-    }
+			profesional,
 
-    // ========================================================
-    // RESPUESTA
-    // ========================================================
+			servicio: servicio
+				? {
+						id: Number(servicio.id),
 
-    return {
-      fecha,
+						nombre: servicio.nombre,
 
-      profesional,
+						descripcion: servicio.descripcion,
 
-      servicio: servicio
-        ? {
-            id: Number(servicio.id),
+						duracion: Number(servicio.duracion),
 
-            nombre: servicio.nombre,
+						precio: Number(servicio.precio),
 
-            descripcion: servicio.descripcion,
+						estado: servicio.estado,
+					}
+				: null,
 
-            duracion: Number(servicio.duracion),
-
-            precio: Number(servicio.precio),
-
-            estado: servicio.estado,
-          }
-        : null,
-
-      horarios,
-    };
-  } finally {
-    client.release();
-  }
+			horarios,
+		};
+	} finally {
+		client.release();
+	}
 };
 
 module.exports = {
-  getAvailableSchedule,
+	getAvailableSchedule,
 };
