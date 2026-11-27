@@ -11,9 +11,9 @@ const httpServer = http.createServer(app);
 const { configurarSocketIO } = require("./utils/socket");
 
 const io = new Server(httpServer, {
-  cors: {
-    origin: "http://localhost:5173",
-  },
+	cors: {
+		origin: ["http://localhost:5173", "https://pia-test.emsofe.com"],
+	},
 });
 
 configurarSocketIO(io);
@@ -23,58 +23,58 @@ configurarSocketIO(io);
 // ============================================================
 
 io.use(async (socket, next) => {
-  try {
-    const token = socket.handshake.auth?.token;
+	try {
+		const token = socket.handshake.auth?.token;
 
-    if (!token) {
-      return next(new Error("Token de autenticación requerido"));
-    }
+		if (!token) {
+			return next(new Error("Token de autenticación requerido"));
+		}
 
-    // --------------------------------------------------------
-    // 1. INTENTAR AUTENTICACIÓN DEL PROFESIONAL
-    // --------------------------------------------------------
+		// --------------------------------------------------------
+		// 1. INTENTAR AUTENTICACIÓN DEL PROFESIONAL
+		// --------------------------------------------------------
 
-    try {
-      const usuario = verificarToken(token);
+		try {
+			const usuario = verificarToken(token);
 
-      if (usuario.rol === "ADMIN" && usuario.profesional_id) {
-        socket.data.tipoUsuario = "PROFESIONAL";
-        socket.data.usuario = usuario;
+			if (usuario.rol === "ADMIN" && usuario.profesional_id) {
+				socket.data.tipoUsuario = "PROFESIONAL";
+				socket.data.usuario = usuario;
 
-        return next();
-      }
-    } catch {
-      // El token puede pertenecer a un cliente.
-    }
+				return next();
+			}
+		} catch {
+			// El token puede pertenecer a un cliente.
+		}
 
-    // --------------------------------------------------------
-    // 2. AUTENTICAR CLIENTE CON SU TOKEN DE BASE DE DATOS
-    // --------------------------------------------------------
+		// --------------------------------------------------------
+		// 2. AUTENTICAR CLIENTE CON SU TOKEN DE BASE DE DATOS
+		// --------------------------------------------------------
 
-    const resultado = await pool.query(
-      `
+		const resultado = await pool.query(
+			`
         SELECT id
         FROM cliente
         WHERE token = $1
         LIMIT 1
       `,
-      [token],
-    );
+			[token],
+		);
 
-    const cliente = resultado.rows[0];
+		const cliente = resultado.rows[0];
 
-    if (cliente) {
-      socket.data.tipoUsuario = "CLIENTE";
-      socket.data.clienteId = cliente.id;
+		if (cliente) {
+			socket.data.tipoUsuario = "CLIENTE";
+			socket.data.clienteId = cliente.id;
 
-      return next();
-    }
+			return next();
+		}
 
-    return next(new Error("Token inválido o acceso no autorizado"));
-  } catch (error) {
-    console.error("Error autenticando Socket.IO:", error.message);
-    return next(new Error("Error al autenticar la conexión"));
-  }
+		return next(new Error("Token inválido o acceso no autorizado"));
+	} catch (error) {
+		console.error("Error autenticando Socket.IO:", error.message);
+		return next(new Error("Error al autenticar la conexión"));
+	}
 });
 
 // ============================================================
@@ -82,37 +82,37 @@ io.use(async (socket, next) => {
 // ============================================================
 
 io.on("connection", (socket) => {
-  // ----------------------------------------------------------
-  // PROFESIONAL
-  // ----------------------------------------------------------
+	// ----------------------------------------------------------
+	// PROFESIONAL
+	// ----------------------------------------------------------
 
-  if (socket.data.tipoUsuario === "PROFESIONAL") {
-    const profesionalId = socket.data.usuario.profesional_id;
-    const sala = `profesional:${profesionalId}`;
+	if (socket.data.tipoUsuario === "PROFESIONAL") {
+		const profesionalId = socket.data.usuario.profesional_id;
+		const sala = `profesional:${profesionalId}`;
 
-    socket.join(sala);
+		socket.join(sala);
 
-    console.log(
-      `🔌 Socket conectado - profesional ${profesionalId} - sala ${sala}`,
-    );
+		console.log(
+			`🔌 Socket conectado - profesional ${profesionalId} - sala ${sala}`,
+		);
 
-    return;
-  }
+		return;
+	}
 
-  // ----------------------------------------------------------
-  // CLIENTE
-  // ----------------------------------------------------------
+	// ----------------------------------------------------------
+	// CLIENTE
+	// ----------------------------------------------------------
 
-  if (socket.data.tipoUsuario === "CLIENTE") {
-    const clienteId = socket.data.clienteId;
-    const sala = `cliente:${clienteId}`;
+	if (socket.data.tipoUsuario === "CLIENTE") {
+		const clienteId = socket.data.clienteId;
+		const sala = `cliente:${clienteId}`;
 
-    socket.join(sala);
+		socket.join(sala);
 
-    console.log(`🔌 Socket conectado - cliente ${clienteId} - sala ${sala}`);
-  }
+		console.log(`🔌 Socket conectado - cliente ${clienteId} - sala ${sala}`);
+	}
 });
 
 httpServer.listen(port, () => {
-  console.log(`PIA Backend funcionando en puerto ${port}`);
+	console.log(`PIA Backend funcionando en puerto ${port}`);
 });

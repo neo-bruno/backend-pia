@@ -626,10 +626,41 @@ const horaAMinutos = (hora) => {
 };
 
 // =====================================================
+// OBTENER HORARIOS DEL NEGOCIO PARA UN DÍA
+// Solo consulta; no guarda ni modifica nada.
+// =====================================================
+const obtenerHorariosNegocioDia = async (profesionalId, diaSemana) => {
+	const client = await pool.connect();
+
+	try {
+		const negocio = await repository.getNegocioByProfesionalId(
+			client,
+			profesionalId,
+		);
+
+		if (!negocio) {
+			const error = new Error(
+				"No se encontró un negocio habilitado para el profesional.",
+			);
+			error.status = 404;
+			throw error;
+		}
+
+		return await repository.getHorariosNegocioPorDia(
+			client,
+			negocio.negocio_id,
+			diaSemana,
+		);
+	} finally {
+		client.release();
+	}
+};
+
+// =====================================================
 // EXPORT
 // =====================================================
-
 module.exports = {
 	saveSlots,
 	getSlots,
+	obtenerHorariosNegocioDia,
 };

@@ -5,7 +5,7 @@ const pool = require("../../database/pool");
 // =====================================================
 
 const getSlotsByProfesionalId = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
 
       -- =================================================
@@ -81,9 +81,9 @@ const getSlotsByProfesionalId = async (client, profesionalId) => {
       s.hora_inicio ASC
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows;
+	return rows;
 };
 
 // =====================================================
@@ -97,7 +97,7 @@ const getSlotsByProfesionalId = async (client, profesionalId) => {
 // =====================================================
 
 const getNegocioByProfesionalId = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
       pn.negocio_id,
       pn.profesional_id,
@@ -119,9 +119,46 @@ const getNegocioByProfesionalId = async (client, profesionalId) => {
     LIMIT 1
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows[0] || null;
+	return rows[0] || null;
+};
+
+// =====================================================
+// HORARIOS DEL NEGOCIO PARA UN DÍA
+// =====================================================
+
+const getHorariosNegocioPorDia = async (client, negocioId, diaSemana) => {
+	const query = `
+    SELECT
+      h.id AS horario_id,
+      h.negocio_id,
+      h.dia_semana,
+      h.turno,
+
+      TO_CHAR(
+        h.hora_inicio,
+        'HH24:MI'
+      ) AS hora_inicio,
+
+      TO_CHAR(
+        h.hora_fin,
+        'HH24:MI'
+      ) AS hora_fin
+
+    FROM horario h
+
+    WHERE h.negocio_id = $1
+      AND h.dia_semana = $2
+
+    ORDER BY
+      h.hora_inicio ASC,
+      h.turno ASC
+  `;
+
+	const { rows } = await client.query(query, [negocioId, diaSemana]);
+
+	return rows;
 };
 
 // =====================================================
@@ -129,7 +166,7 @@ const getNegocioByProfesionalId = async (client, profesionalId) => {
 // =====================================================
 
 const getHorariosProfesionales = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
 
       hp.id AS horario_profesional_id,
@@ -162,9 +199,9 @@ const getHorariosProfesionales = async (client, profesionalId) => {
       h.turno ASC
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows;
+	return rows;
 };
 
 // =====================================================
@@ -172,7 +209,7 @@ const getHorariosProfesionales = async (client, profesionalId) => {
 // =====================================================
 
 const getSlotsActuales = async (client, profesionalId) => {
-  const query = `
+	const query = `
     SELECT
       s.id AS slot_id,
       hp.id AS horario_profesional_id,
@@ -206,9 +243,9 @@ const getSlotsActuales = async (client, profesionalId) => {
       s.hora_inicio ASC
   `;
 
-  const { rows } = await client.query(query, [profesionalId]);
+	const { rows } = await client.query(query, [profesionalId]);
 
-  return rows;
+	return rows;
 };
 
 // =====================================================
@@ -216,7 +253,7 @@ const getSlotsActuales = async (client, profesionalId) => {
 // =====================================================
 
 const getSlotById = async (client, slotId) => {
-  const query = `
+	const query = `
     SELECT
 
       s.id,
@@ -233,16 +270,16 @@ const getSlotById = async (client, slotId) => {
     FOR UPDATE
   `;
 
-  const { rows } = await client.query(query, [slotId]);
+	const { rows } = await client.query(query, [slotId]);
 
-  return rows[0] || null;
+	return rows[0] || null;
 };
 
 // =====================================================
 // RESERVA CONFIRMADA
 // =====================================================
 const tieneReservaConfirmada = async (client, slotId) => {
-  const query = `
+	const query = `
     SELECT 1
 
     FROM reserva_slot rs
@@ -257,9 +294,9 @@ const tieneReservaConfirmada = async (client, slotId) => {
     LIMIT 1
   `;
 
-  const { rows } = await client.query(query, [slotId]);
+	const { rows } = await client.query(query, [slotId]);
 
-  return rows.length > 0;
+	return rows.length > 0;
 };
 
 // =====================================================
@@ -267,7 +304,7 @@ const tieneReservaConfirmada = async (client, slotId) => {
 // =====================================================
 
 const crearSlot = async (client, slot) => {
-  const query = `
+	const query = `
     INSERT INTO slot (
       horario_profesional_id,
       hora_inicio,
@@ -294,27 +331,23 @@ const crearSlot = async (client, slot) => {
       estado
   `;
 
-  const { rows } = await client.query(query, [
-    slot.horario_profesional_id,
-    slot.hora_inicio,
-    slot.hora_fin,
-    slot.duracion,
-    slot.estado,
-  ]);
+	const { rows } = await client.query(query, [
+		slot.horario_profesional_id,
+		slot.hora_inicio,
+		slot.hora_fin,
+		slot.duracion,
+		slot.estado,
+	]);
 
-  return rows[0];
+	return rows[0];
 };
 
 // =====================================================
 // MODIFICAR SLOT
 // =====================================================
 
-// =====================================================
-// MODIFICAR SLOT
-// =====================================================
-
 const modificarSlot = async (client, slotId, datos) => {
-  const query = `
+	const query = `
     UPDATE slot
     SET
       hora_inicio = $1,
@@ -331,17 +364,17 @@ const modificarSlot = async (client, slotId, datos) => {
       estado;
   `;
 
-  const values = [
-    datos.hora_inicio,
-    datos.hora_fin,
-    datos.duracion,
-    datos.estado,
-    slotId,
-  ];
+	const values = [
+		datos.hora_inicio,
+		datos.hora_fin,
+		datos.duracion,
+		datos.estado,
+		slotId,
+	];
 
-  const result = await client.query(query, values);
+	const result = await client.query(query, values);
 
-  return result.rows[0] || null;
+	return result.rows[0] || null;
 };
 
 // =====================================================
@@ -349,7 +382,7 @@ const modificarSlot = async (client, slotId, datos) => {
 // =====================================================
 
 const eliminarSlot = async (client, slotId) => {
-  const query = `
+	const query = `
     DELETE FROM slot
 
     WHERE id = $1
@@ -358,9 +391,9 @@ const eliminarSlot = async (client, slotId) => {
       id AS slot_id
   `;
 
-  const { rows } = await client.query(query, [slotId]);
+	const { rows } = await client.query(query, [slotId]);
 
-  return rows[0] || null;
+	return rows[0] || null;
 };
 
 /**
@@ -371,7 +404,7 @@ const eliminarSlot = async (client, slotId) => {
  * una referencia en reserva_slot.
  */
 const tieneRelacionReserva = async (client, slotId) => {
-  const query = `
+	const query = `
     SELECT EXISTS (
       SELECT 1
       FROM reserva_slot rs
@@ -379,9 +412,9 @@ const tieneRelacionReserva = async (client, slotId) => {
     ) AS tiene_reserva
   `;
 
-  const { rows } = await client.query(query, [slotId]);
+	const { rows } = await client.query(query, [slotId]);
 
-  return rows[0]?.tiene_reserva === true;
+	return rows[0]?.tiene_reserva === true;
 };
 
 // =====================================================
@@ -389,22 +422,16 @@ const tieneRelacionReserva = async (client, slotId) => {
 // =====================================================
 
 module.exports = {
-  getSlotsByProfesionalId,
+	getSlotsByProfesionalId,
+	getNegocioByProfesionalId,
+	getHorariosNegocioPorDia,
+	getHorariosProfesionales,
+	getSlotsActuales,
+	getSlotById,
+	tieneReservaConfirmada,
+	crearSlot,
+	modificarSlot,
 
-  getNegocioByProfesionalId,
-
-  getHorariosProfesionales,
-
-  getSlotsActuales,
-
-  getSlotById,
-
-  tieneReservaConfirmada,
-
-  crearSlot,
-
-  modificarSlot,
-
-  eliminarSlot,
-  tieneRelacionReserva,
+	eliminarSlot,
+	tieneRelacionReserva,
 };

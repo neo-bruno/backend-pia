@@ -1,5 +1,6 @@
 const pool = require("../../database/pool");
 const notificacionRepository = require("../notificacion/notificacion.repository");
+const { emitirNotificacionCliente } = require("../../utils/socket");
 
 const repository = require("./comprobanteAdmin.repository");
 
@@ -8,15 +9,15 @@ const repository = require("./comprobanteAdmin.repository");
 // ============================================================
 
 exports.obtenerComprobante = async (comprobanteId) => {
-  const comprobante = await repository.obtenerComprobantePorId(comprobanteId);
+	const comprobante = await repository.obtenerComprobantePorId(comprobanteId);
 
-  if (!comprobante) {
-    const error = new Error("Comprobante no encontrado");
-    error.statusCode = 404;
-    throw error;
-  }
+	if (!comprobante) {
+		const error = new Error("Comprobante no encontrado");
+		error.statusCode = 404;
+		throw error;
+	}
 
-  return comprobante;
+	return comprobante;
 };
 
 // ============================================================
@@ -24,107 +25,117 @@ exports.obtenerComprobante = async (comprobanteId) => {
 // ============================================================
 
 exports.cambiarEstado = async (
-  comprobanteId,
-  estado,
-  profesionalId,
-  observacion = null,
+	comprobanteId,
+	estado,
+	profesionalId,
+	observacion = null,
 ) => {
-  const client = await pool.connect();
+	const client = await pool.connect();
 
-  try {
-    await client.query("BEGIN");
+	try {
+		await client.query("BEGIN");
 
-    // ========================================================
-    // OBTENER INFORMACIÓN DEL COMPROBANTE
-    // ========================================================
+		// ========================================================
+		// OBTENER INFORMACIÓN DEL COMPROBANTE
+		// ========================================================
 
-    const comprobante = await repository.obtenerDatosComprobante(
-      client,
-      comprobanteId,
-    );
+		const comprobante = await repository.obtenerDatosComprobante(
+			client,
+			comprobanteId,
+		);
 
-    if (!comprobante) {
-      await client.query("ROLLBACK");
-      return null;
-    }
+		if (!comprobante) {
+			await client.query("ROLLBACK");
+			return null;
+		}
 
-    // ========================================================
-    // ACTUALIZAR COMPROBANTE
-    // ========================================================
+		// ========================================================
+		// ACTUALIZAR COMPROBANTE
+		// ========================================================
 
-    const actualizado = await repository.cambiarEstado(
-      client,
-      comprobanteId,
-      estado,
-      profesionalId,
-      observacion,
-    );
+		const actualizado = await repository.cambiarEstado(
+			client,
+			comprobanteId,
+			estado,
+			profesionalId,
+			observacion,
+		);
 
-    if (!actualizado) {
-      await client.query("ROLLBACK");
-      return null;
-    }
+		if (!actualizado) {
+			await client.query("ROLLBACK");
+			return null;
+		}
 
-    // ========================================================
-    // PREPARAR NOTIFICACIÓN AL CLIENTE
-    // ========================================================
+		// ========================================================
+		// PREPARAR NOTIFICACIÓN AL CLIENTE
+		// ========================================================
 
-    let titulo = null;
-    let mensaje = null;
+		let titulo = null;
+		let mensaje = null;
 
-    if (estado === "ACEPTADO") {
-      titulo = "Comprobante aceptado";
+		if (estado === "ACEPTADO") {
+			titulo = "Comprobante aceptado";
 
-      mensaje =
-        `Tu comprobante de pago de la reserva #${comprobante.reserva_numero} ` +
-        `fue aceptado correctamente.`;
-    }
+			mensaje =
+				`Tu comprobante de pago de la reserva #${comprobante.reserva_numero} ` +
+				`fue aceptado correctamente.`;
+		}
 
-    if (estado === "RECHAZADO") {
-      titulo = "Comprobante rechazado";
+		if (estado === "RECHAZADO") {
+			titulo = "Comprobante rechazado";
 
-      mensaje =
-        `Tu comprobante de pago de la reserva #${comprobante.reserva_numero} ` +
-        `fue rechazado.`;
+			mensaje =
+				`Tu comprobante de pago de la reserva #${comprobante.reserva_numero} ` +
+				`fue rechazado.`;
 
-      if (observacion) {
-        mensaje += ` Observación: ${observacion}`;
-      }
-    }
+			if (observacion) {
+				mensaje += ` Observación: ${observacion}`;
+			}
+		}
 
-    // ========================================================
-    // CREAR NOTIFICACIÓN SOLO PARA ACEPTADO / RECHAZADO
-    // ========================================================
+		// ========================================================
+		// CREAR NOTIFICACIÓN SOLO PARA ACEPTADO / RECHAZADO
+		// ========================================================
 
-    if (titulo && mensaje) {
-      await notificacionRepository.crearNotificacion(client, {
-        cliente_id: comprobante.cliente_id,
-        reserva_id: comprobante.reserva_id,
-        pago_id: comprobante.pago_id,
-        titulo,
-        mensaje,
-        tipo: "RESERVA",
-      });
-    }
+		let notificacionCreada = null;
 
-    // ========================================================
-    // CONFIRMAR TRANSACCIÓN
-    // ========================================================
+		if (titulo && mensaje) {
+			notificacionCreada = await notificacionRepository.crearNotificacion(
+				client,
+				{
+					cliente_id: comprobante.cliente_id,
+					reserva_id: comprobante.reserva_id,
+					pago_id: comprobante.pago_id,
+					titulo,
+					mensaje,
+					tipo: "RESERVA",
+				},
+			);
+		}
 
-    await client.query("COMMIT");
+		// ========================================================
+		// CONFIRMAR TRANSACCIÓN
+		// ========================================================
 
-    return actualizado;
-  } catch (error) {
-    try {
-      await client.query("ROLLBACK");
-    } catch (rollbackError) {
-      console.error("Error realizando ROLLBACK:", rollbackError);
-    }
+		await client.query("COMMIT");
 
-    console.error("Error cambiando estado del comprobante:", error);
+		// Enviar al cliente después de confirmar la transacción
+		if (notificacionCreada) {
+			emitirNotificacionCliente(comprobante.cliente_id, notificacionCreada);
+		}
 
-    throw error;
-  } finally {
-    client.release();
-  }
+		return actualizado;
+	} catch (error) {
+		try {
+			await client.query("ROLLBACK");
+		} catch (rollbackError) {
+			console.error("Error realizando ROLLBACK:", rollbackError);
+		}
+
+		console.error("Error cambiando estado del comprobante:", error);
+
+		throw error;
+	} finally {
+		client.release();
+	}
 };

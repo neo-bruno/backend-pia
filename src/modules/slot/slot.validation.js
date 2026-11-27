@@ -3,18 +3,18 @@
 // =====================================================
 
 const validarProfesional = (req, res, next) => {
-  const profesionalId = Number(req.usuario?.profesional_id);
+	const profesionalId = Number(req.usuario?.profesional_id);
 
-  if (!Number.isInteger(profesionalId) || profesionalId <= 0) {
-    return res.status(401).json({
-      ok: false,
-      message: "El usuario no tiene un profesional asociado",
-    });
-  }
+	if (!Number.isInteger(profesionalId) || profesionalId <= 0) {
+		return res.status(401).json({
+			ok: false,
+			message: "El usuario no tiene un profesional asociado",
+		});
+	}
 
-  req.profesionalId = profesionalId;
+	req.profesionalId = profesionalId;
 
-  next();
+	next();
 };
 
 // =====================================================
@@ -22,143 +22,162 @@ const validarProfesional = (req, res, next) => {
 // =====================================================
 
 const validarSlots = (req, res, next) => {
-  const slots = req.body;
+	const slots = req.body;
 
-  // =====================================================
-  // DEBE SER UN ARREGLO
-  // =====================================================
+	// =====================================================
+	// DEBE SER UN ARREGLO
+	// =====================================================
 
-  if (!Array.isArray(slots)) {
-    return res.status(400).json({
-      ok: false,
-      message: "El cuerpo de la solicitud debe ser un arreglo",
-    });
-  }
+	if (!Array.isArray(slots)) {
+		return res.status(400).json({
+			ok: false,
+			message: "El cuerpo de la solicitud debe ser un arreglo",
+		});
+	}
 
-  const slotsValidos = [];
+	const slotsValidos = [];
 
-  // =====================================================
-  // RECORRER SLOTS
-  // =====================================================
+	// =====================================================
+	// RECORRER SLOTS
+	// =====================================================
 
-  for (const slot of slots) {
-    const slotId =
-      slot?.slot_id === null ||
-      slot?.slot_id === undefined ||
-      slot?.slot_id === ""
-        ? null
-        : Number(slot.slot_id);
+	for (const slot of slots) {
+		const slotId =
+			slot?.slot_id === null ||
+			slot?.slot_id === undefined ||
+			slot?.slot_id === ""
+				? null
+				: Number(slot.slot_id);
 
-    const horarioProfesionalId = Number(slot?.horario_profesional_id);
+		const horarioProfesionalId = Number(slot?.horario_profesional_id);
 
-    const horaInicio = String(slot?.hora_inicio || "").trim();
+		const horaInicio = String(slot?.hora_inicio || "").trim();
 
-    const horaFin = String(slot?.hora_fin || "").trim();
+		const horaFin = String(slot?.hora_fin || "").trim();
 
-    const estado = String(slot?.estado || "")
-      .trim()
-      .toUpperCase();
+		const estado = String(slot?.estado || "")
+			.trim()
+			.toUpperCase();
 
-    // =====================================================
-    // SLOT ID
-    // =====================================================
+		// =====================================================
+		// SLOT ID
+		// =====================================================
 
-    if (slotId !== null && (!Number.isInteger(slotId) || slotId <= 0)) {
-      return res.status(400).json({
-        ok: false,
-        message: "slot_id inválido",
-      });
-    }
+		if (slotId !== null && (!Number.isInteger(slotId) || slotId <= 0)) {
+			return res.status(400).json({
+				ok: false,
+				message: "slot_id inválido",
+			});
+		}
 
-    // =====================================================
-    // HORARIO PROFESIONAL
-    // =====================================================
+		// =====================================================
+		// HORARIO PROFESIONAL
+		// =====================================================
 
-    if (!Number.isInteger(horarioProfesionalId) || horarioProfesionalId <= 0) {
-      return res.status(400).json({
-        ok: false,
-        message: "horario_profesional_id inválido",
-      });
-    }
+		if (!Number.isInteger(horarioProfesionalId) || horarioProfesionalId <= 0) {
+			return res.status(400).json({
+				ok: false,
+				message: "horario_profesional_id inválido",
+			});
+		}
 
-    // =====================================================
-    // HORAS
-    // =====================================================
+		// =====================================================
+		// HORAS
+		// =====================================================
 
-    const formatoHora = /^([01]\d|2[0-3]):[0-5]\d$/;
+		const formatoHora = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-    if (!formatoHora.test(horaInicio)) {
-      return res.status(400).json({
-        ok: false,
-        message: `hora_inicio inválida: ${horaInicio}`,
-      });
-    }
+		if (!formatoHora.test(horaInicio)) {
+			return res.status(400).json({
+				ok: false,
+				message: `hora_inicio inválida: ${horaInicio}`,
+			});
+		}
 
-    if (!formatoHora.test(horaFin)) {
-      return res.status(400).json({
-        ok: false,
-        message: `hora_fin inválida: ${horaFin}`,
-      });
-    }
+		if (!formatoHora.test(horaFin)) {
+			return res.status(400).json({
+				ok: false,
+				message: `hora_fin inválida: ${horaFin}`,
+			});
+		}
 
-    // =====================================================
-    // ESTADO
-    // =====================================================
+		// =====================================================
+		// ESTADO
+		// =====================================================
 
-    const estadosPermitidos = ["DISPONIBLE", "BLOQUEADO", "OCUPADO"];
+		const estadosPermitidos = ["DISPONIBLE", "BLOQUEADO", "OCUPADO"];
 
-    if (!estadosPermitidos.includes(estado)) {
-      return res.status(400).json({
-        ok: false,
-        message: `Estado de slot inválido: ${estado}`,
-      });
-    }
+		if (!estadosPermitidos.includes(estado)) {
+			return res.status(400).json({
+				ok: false,
+				message: `Estado de slot inválido: ${estado}`,
+			});
+		}
 
-    // =====================================================
-    // NORMALIZAMOS
-    // =====================================================
+		// =====================================================
+		// NORMALIZAMOS
+		// =====================================================
 
-    slotsValidos.push({
-      slot_id: slotId,
+		slotsValidos.push({
+			slot_id: slotId,
 
-      horario_profesional_id: horarioProfesionalId,
+			horario_profesional_id: horarioProfesionalId,
 
-      hora_inicio: horaInicio,
+			hora_inicio: horaInicio,
 
-      hora_fin: horaFin,
+			hora_fin: horaFin,
 
-      estado,
-    });
-  }
+			estado,
+		});
+	}
 
-  // =====================================================
-  // ELIMINAR DUPLICADOS
-  // =====================================================
+	// =====================================================
+	// ELIMINAR DUPLICADOS
+	// =====================================================
 
-  const unicos = [];
+	const unicos = [];
 
-  const existentes = new Set();
+	const existentes = new Set();
 
-  for (const slot of slotsValidos) {
-    const clave = `${slot.horario_profesional_id}-${slot.hora_inicio}-${slot.hora_fin}`;
+	for (const slot of slotsValidos) {
+		const clave = `${slot.horario_profesional_id}-${slot.hora_inicio}-${slot.hora_fin}`;
 
-    if (!existentes.has(clave)) {
-      existentes.add(clave);
+		if (!existentes.has(clave)) {
+			existentes.add(clave);
 
-      unicos.push(slot);
-    }
-  }
+			unicos.push(slot);
+		}
+	}
 
-  // =====================================================
-  // ENTREGAR AL CONTROLLER
-  // =====================================================
+	// =====================================================
+	// ENTREGAR AL CONTROLLER
+	// =====================================================
 
-  req.slots = unicos;
+	req.slots = unicos;
 
-  next();
+	next();
+};
+
+// =====================================================
+// VALIDAR DÍA DE LA SEMANA
+// =====================================================
+
+const validarDiaSemana = (req, res, next) => {
+	const diaSemana = Number(req.body?.dia_semana);
+
+	if (!Number.isInteger(diaSemana) || diaSemana < 1 || diaSemana > 7) {
+		return res.status(400).json({
+			ok: false,
+			message: "El día de la semana debe estar entre 1 y 7",
+		});
+	}
+
+	req.diaSemana = diaSemana;
+	next();
 };
 
 module.exports = {
-  validarProfesional,
-  validarSlots,
+	validarProfesional,
+	validarSlots,
+	validarDiaSemana,
 };

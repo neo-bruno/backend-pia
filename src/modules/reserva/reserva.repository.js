@@ -7,9 +7,7 @@ const pool = require("../../database/pool");
 
 const segmentacionRepository = require("../segmentacion/segmentacion.repository");
 const reservaPublicoRepository = require("../reserva-publico/reservaPublico.repository");
-const {
-	calcularSegmentacion,
-} = require("../segmentacion/segmentacion.calculo");
+const { calcularSegmentacion } = require("../segmentacion/segmentacion.calculo");
 
 // ============================================================
 // OBTENER RESERVAS DEL PROFESIONAL

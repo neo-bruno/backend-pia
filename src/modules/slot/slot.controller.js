@@ -4,35 +4,35 @@ const service = require("./slot.service");
 // OBTENER SLOTS
 // =====================================================
 const getSlots = async (req, res) => {
-  try {
-    const profesionalId =
-      req.profesionalId || Number(req.usuario?.profesional_id);
+	try {
+		const profesionalId =
+			req.profesionalId || Number(req.usuario?.profesional_id);
 
-    if (!Number.isInteger(profesionalId) || profesionalId <= 0) {
-      return res.status(401).json({
-        ok: false,
-        message: "El usuario no tiene un profesional asociado",
-      });
-    }
+		if (!Number.isInteger(profesionalId) || profesionalId <= 0) {
+			return res.status(401).json({
+				ok: false,
+				message: "El usuario no tiene un profesional asociado",
+			});
+		}
 
-    const data = await service.getSlots(profesionalId);
+		const data = await service.getSlots(profesionalId);
 
-    return res.status(200).json({
-      ok: true,
+		return res.status(200).json({
+			ok: true,
 
-      message: "Slots obtenidos correctamente",
+			message: "Slots obtenidos correctamente",
 
-      data,
-    });
-  } catch (error) {
-    console.error("Error getSlots:", error);
+			data,
+		});
+	} catch (error) {
+		console.error("Error getSlots:", error);
 
-    return res.status(error.status || 500).json({
-      ok: false,
+		return res.status(error.status || 500).json({
+			ok: false,
 
-      message: error.message || "Error al obtener los slots",
-    });
-  }
+			message: error.message || "Error al obtener los slots",
+		});
+	}
 };
 
 // slot.controller.js
@@ -40,43 +40,63 @@ const getSlots = async (req, res) => {
 // GUARDAR SLOTS
 // =====================================================
 const saveSlots = async (req, res) => {
-  try {
-    const profesionalId = req.usuario?.profesional_id;
+	try {
+		const profesionalId = req.usuario?.profesional_id;
 
-    if (!profesionalId) {
-      return res.status(401).json({
-        ok: false,
+		if (!profesionalId) {
+			return res.status(401).json({
+				ok: false,
 
-        message: "El usuario no tiene un profesional asociado",
-      });
-    }
+				message: "El usuario no tiene un profesional asociado",
+			});
+		}
 
-    const slots = req.slots;    
-    const data = await service.saveSlots(profesionalId, slots);
+		const slots = req.slots;
+		const data = await service.saveSlots(profesionalId, slots);
 
-    return res.status(200).json({
-      ok: true,
+		return res.status(200).json({
+			ok: true,
 
-      message: "Slots guardados correctamente",
+			message: "Slots guardados correctamente",
 
-      data,
-    });
-  } catch (error) {
-    console.error("Error saveSlots:", error);
+			data,
+		});
+	} catch (error) {
+		console.error("Error saveSlots:", error);
 
-    return res.status(error.status || 500).json({
-      ok: false,
+		return res.status(error.status || 500).json({
+			ok: false,
 
-      message: error.message || "Error al guardar los slots",
+			message: error.message || "Error al guardar los slots",
 
-      ...(error.detalle && {
-        detalle: error.detalle,
-      }),
-    });
-  }
+			...(error.detalle && {
+				detalle: error.detalle,
+			}),
+		});
+	}
+};
+
+// =====================================================
+// RESTABLECER HORARIOS DEL DÍA SELECCIONADO
+// =====================================================
+const obtenerHorariosNegocioDia = async (req, res, next) => {
+	try {
+		const horarios = await service.obtenerHorariosNegocioDia(
+			req.profesionalId,
+			req.diaSemana,
+		);
+
+		return res.status(200).json({
+			mensaje: "Horarios del negocio obtenidos correctamente.",
+			data: horarios,
+		});
+	} catch (error) {
+		next(error);
+	}
 };
 
 module.exports = {
-  saveSlots,
-  getSlots,
+	saveSlots,
+	getSlots,
+	obtenerHorariosNegocioDia,
 };

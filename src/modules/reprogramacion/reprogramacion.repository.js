@@ -23,7 +23,7 @@ async function getReservaParaReprogramar(
         r.servicio_id,
         r.numero,
         r.estado,
-        r.fecha,
+        r.fecha::text AS fecha,
         r.hora_inicio,
         r.hora_fin,
 
